@@ -4,8 +4,8 @@
 
 #define BASE_SERVO 0
 #define SERVO_ELBOW 4
-#define SERVO_WRIST 5
-#define SERVO_CLAW 6
+#define SERVO_WRIST 6
+#define SERVO_CLAW 8
 
 // Pin I2C ESP8266 (default)
 #define SDA_PIN D2 // GPIO4
@@ -18,6 +18,5 @@
 #define SERVOMAX 512 // 2500μs → 180°
 #define SERVOMID 307 // 1500μs → 90° (centro)
 #define SERVO_TRIM 0
-
 
 #endif

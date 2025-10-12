@@ -12,7 +12,7 @@
 
 
 #define MIN_ANGLE 0
-#define MAX_ANGLE 180
+#define MAX_ANGLE 360
 
 class ServoMotor20Diy
 {

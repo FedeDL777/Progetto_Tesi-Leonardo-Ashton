@@ -5,6 +5,23 @@
 
 RoboticArmMachine::RoboticArmMachine()
 {
+
+    this->currentState = STATE_START;
+    this->previousState = STATE_START;
+    
+    this->networkConnected = false;
+    this->servoError = false;
+    this->lastErrorMsg = "";
+    this->pendingCommand = "";
+
+
+    pinMode(LED_GREEN, OUTPUT);
+    pinMode(LED_RED, OUTPUT);
+
+    setLedState(false, false);
+    
+
+    this->baseServo = new ServoMotor20Diy(BASE_SERVO);
     this->elbowServo = new ServoMotorMG66R(SERVO_ELBOW);
     this->wristServo = new ServoMotorMG66R(SERVO_WRIST);
     this->clawServo = new ServoMotorMG66R(SERVO_CLAW);
@@ -68,4 +85,17 @@ void RoboticArmMachine::moveWristServo(int angle)
 void RoboticArmMachine::moveClawServo(int angle)
 {
     this->clawServo->moveServo(this->pwm, angle);
+}
+
+
+void RoboticArmMachine::setLedState(bool green, bool red) {
+    digitalWrite(LED_GREEN, green ? HIGH : LOW);
+    digitalWrite(LED_RED, red ? HIGH : LOW);
+
+    /* Debug */
+    /*String ledState = "LED: ";
+    ledState += green ? "ON" : "OFF";
+    ledState += " ";
+    ledState += red ? "ON" : "OFF";
+    Serial.println(ledState);*/
 }

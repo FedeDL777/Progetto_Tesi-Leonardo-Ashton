@@ -16,6 +16,6 @@ void ServoMotorMG66R::moveServo(Adafruit_PWMServoDriver pwm, float angle)
 
     this->currentAngle = angle;
 
-    Serial.printf("🎯 Servo CH%d → %.1f° (PWM: %d)\n", channel, angle, pulse);
+    Serial.printf("Servo CH%d → %.1f° (PWM: %d)\n", channel, angle, pulse);
 }
 

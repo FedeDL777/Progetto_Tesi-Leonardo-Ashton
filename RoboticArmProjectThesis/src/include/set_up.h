@@ -1,4 +1,5 @@
 #include "Arduino.h"
+#include <Adafruit_PWMServoDriver.h>
 #ifndef __SETUP__
 #define __SETUP__
 
@@ -11,6 +12,10 @@
 #define SDA_PIN D2 // GPIO4
 #define SCL_PIN D1 // GPIO5
 
+#define LED_GREEN D0
+#define LED_RED D8
+#define BUTTON_PIN D5
+#define BUTTON_PIN D6
 // Indirizzo I2C PCA9685 (default 0x40)
 #define PCA9685_ADDRESS 0x40
 

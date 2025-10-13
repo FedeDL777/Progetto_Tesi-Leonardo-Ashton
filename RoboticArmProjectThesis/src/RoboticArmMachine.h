@@ -11,22 +11,16 @@ class RoboticArmMachine
 public:
     RoboticArmMachine();
 
-        enum RobotState
-    {
-        STATE_START = 0,
-        STATE_CONNECTED = 1,
-        STATE_WORKING = 2,
-        STATE_PROBLEM_SERVO = 3,
-        STATE_NETWORK_LOST = 4,
-        STATE_IDLE = 5
-    };
+
     void begin(); 
 
     void update();
     
     // Getters
-    RobotState getCurrentState();
+    int getCurrentState();
     String getStateString();
+
+    void RoboticArmMachine::transitionTo(int newState);
     
     // Setters (transizioni)
     void tryConnectToNetwork();
@@ -34,7 +28,9 @@ public:
     void connectionLost();
     void startWorking();
     void stopWorking();
+
     void servoError(String errorMsg);
+    
     void servoErrorResolved();
     void receiveCommand(String command);
     
@@ -44,14 +40,38 @@ public:
     void moveWristServo(int angle);
     void moveClawServo(int angle);
 
+    // State management
+    void transitionTo(int newState);
+    void logStateChange(int oldState, int newState);
+    void enterStart();
+    void exitStart();
+    void enterConnected();
+    void exitConnected();
+    void enterWorking();
+    void exitWorking();
+    void enterProblemServo();
+    void exitProblemServo();
+    void enterNetworkLost();
+    void exitNetworkLost();
+    void enterIdle();
+    void exitIdle();
+
 private:
+        enum
+    {
+        STATE_START = 0,
+        STATE_CONNECTED = 1,
+        STATE_WORKING = 2,
+        STATE_PROBLEM_SERVO = 3,
+        STATE_NETWORK_LOST = 4,
+        STATE_IDLE = 5
+    } currentState, previousState;
+
     ServoMotor20Diy *baseServo;
-    ServoMotorMG66R *elbowServo;
+    ServoMotor20Diy *elbowServo;
     ServoMotorMG66R *wristServo;
     ServoMotorMG66R *clawServo;
     Adafruit_PWMServoDriver pwm;
-    RobotState currentState;
-    RobotState previousState;
 
     bool networkConnected;
     bool servoError;

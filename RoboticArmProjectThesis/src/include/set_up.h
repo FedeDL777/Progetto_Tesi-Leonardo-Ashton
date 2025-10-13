@@ -5,8 +5,8 @@
 
 #define BASE_SERVO 0
 #define SERVO_ELBOW 4
-#define SERVO_WRIST 6
-#define SERVO_CLAW 8
+#define SERVO_WRIST 8
+#define SERVO_CLAW 12
 
 // Pin I2C ESP8266 (default)
 #define SDA_PIN D2 // GPIO4

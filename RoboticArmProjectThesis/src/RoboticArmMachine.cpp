@@ -1,211 +1,225 @@
-#include "RoboticArmMachine.h"
+/*******************************************************************************
+ * ROBOTIC ARM MACHINE - IMPLEMENTAZIONE
+ ******************************************************************************/
 
+#include "RoboticArmMachine.h"
 #include "include/set_up.h"
 
+// ============================================================================
+// COSTRUTTORE
+// ============================================================================
 
-RoboticArmMachine::RoboticArmMachine()
-{
+RoboticArmMachine::RoboticArmMachine() {
 
-
-    this->pwm = Adafruit_PWMServoDriver(PCA9685_ADDRESS);
-
+    // Setup I2C
     Wire.begin(SDA_PIN, SCL_PIN);
-    Wire.setClock(400000); // 400kHz Fast I2C
-
+    Wire.setClock(400000);
+    
     Serial.printf("I2C: SDA=%d, SCL=%d, Clock=400kHz\n", SDA_PIN, SCL_PIN);
-
-    // Test presenza PCA9685
+    
+    // Test PCA9685
     Wire.beginTransmission(PCA9685_ADDRESS);
     byte error = Wire.endTransmission();
-
-    if (error != 0)
-    {
-        Serial.printf("ERRORE: PCA9685 non trovato all'indirizzo 0x%02X\n", PCA9685_ADDRESS);
-        Serial.println("Verifica collegamenti I2C!");
-        Serial.println("   - SDA (D2) collegato?");
-        Serial.println("   - SCL (D1) collegato?");
-        Serial.println("   - PCA9685 VCC collegato a 3.3V ESP8266?");
-        while (1)
-        {
-        delay(1000);
-        Serial.print(".");
-        }
+    
+    if (error != 0) {
+        Serial.printf("PCA9685 not found at 0x%02X\n", PCA9685_ADDRESS);
+        while(1) delay(1000);
     }
+    
+    Serial.printf("PCA9685 found\n\n");
+    
 
-    Serial.printf("✅ PCA9685 trovato all'indirizzo 0x%02X\n\n", PCA9685_ADDRESS);
-
-    // ==========================================
-    // INIZIALIZZA PCA9685
-    // ==========================================
+    this->pwm = Adafruit_PWMServoDriver(PCA9685_ADDRESS);
     this->pwm.begin();
-    this->pwm.setPWMFreq(50); // 50Hz per servo standard MG996R
+    this->pwm.setPWMFreq(50);
     delay(10);
-}
+    
+    Serial.println("PCA9685 configured\n");
+    
 
-void RoboticArmMachine::begin()
-{
+    this->ledGreen = new Led(LED_GREEN);
+    this->ledRed = new Led(LED_RED);
+    this->buttonWhite = new Button(BUTTON_WHITE_PIN);
+    this->buttonBlue = new Button(BUTTON_BLUE_PIN);
+    
+    Serial.println("LED and Button initialized\n");
+    
+    // ==========================================
+    // Crea servo motori
+    // ==========================================
+    // Full range servo
+    this->baseServo = new ServoMotor20Diy(BASE_SERVO, 0, 180);
+    this->elbowServo = new ServoMotor20Diy(SERVO_ELBOW, 0, 180);
+    
+    // Limited range servo (per sicurezza)
+    this->wristServo = new ServoMotorMG66R(SERVO_WRIST, 0, 180);
+    this->clawServo = new ServoMotorMG66R(SERVO_CLAW, 60, 120);
+    
+    Serial.println("Servo motors initialized\n");
+    
+    // ==========================================
+    // Inizializza state
+    // ==========================================
     this->currentState = STATE_START;
     this->previousState = STATE_START;
-    
     this->networkConnected = false;
-    this->servoError = false;
+    this->servoErrorFlag = false;
     this->lastErrorMsg = "";
     this->pendingCommand = "";
+    
+    this->stateEntryTime = millis();
+    this->lastNetworkCheck = millis();
+    this->lastServoCheck = millis();
+    
+    Serial.println("✅ RoboticArmMachine initialized\n");
+}
 
 
-    pinMode(LED_GREEN, OUTPUT);
-    pinMode(LED_RED, OUTPUT);
-
+void RoboticArmMachine::begin() {
+    Serial.println("System starting...\n");
+    
     setLedState(false, false);
     
-
-    this->baseServo = new ServoMotor20Diy(BASE_SERVO);
-    this->elbowServo = new ServoMotor20Diy(SERVO_ELBOW);
-    this->wristServo = new ServoMotorMG66R(SERVO_WRIST);
-    this->clawServo = new ServoMotorMG66R(SERVO_CLAW);
+    // Posizione sicura iniziale
+    moveAllToCenter();
+    delay(500);
+    
+    // Transizione a START
+    transitionTo(STATE_START);
 }
 
-//
 
-
-void RoboticArmMachine::transitionTo(int newState) {
-    if (newState == currentState) {
-        return;  // Nessuna transizione se lo stato è lo stesso
-    }
-    
-    // Exit dello stato attuale
-        switch (currentState) {
-        case STATE_START:        exitStart();        break;
-        case STATE_CONNECTED:    exitConnected();    break;
-        case STATE_WORKING:      exitWorking();     break;
-        case STATE_PROBLEM_SERVO: exitProblemServo(); break;
-        case STATE_NETWORK_LOST: exitNetworkLost();  break;
-        case STATE_IDLE:         exitIdle();         break;
-    }
-    
-    // Log transizione
-    logStateChange(currentState, newState);
-    previousState = currentState;
-    
-    // Enter del nuovo stato
-    switch (newState) {
-        case STATE_START:        enterStart();        break;
-        case STATE_CONNECTED:    enterConnected();    break;
-        case STATE_WORKING:      enterWorking();      break;
-        case STATE_PROBLEM_SERVO: enterProblemServo(); break;
-        case STATE_NETWORK_LOST: enterNetworkLost();  break;
-        case STATE_IDLE:         enterIdle();         break;
+void RoboticArmMachine::update() {
+    // Esegui handler dello stato attuale
+    switch (currentState) {
+        case STATE_START:
+            handleStart();
+            break;
+        case STATE_CONNECTED:
+            handleConnected();
+            break;
+        case STATE_WORKING:
+            handleWorking();
+            break;
+        case STATE_PROBLEM_SERVO:
+            handleProblemServo();
+            break;
+        case STATE_NETWORK_LOST:
+            handleNetworkLost();
+            break;
+        case STATE_IDLE:
+            handleIdle();
+            break;
     }
 }
 
-void RoboticArmMachine::logStateChange(int oldState, int newState)
-{
-    Serial.printf("🔄 Cambio stato: %d -> %d\n", oldState, newState);
+// ============================================================================
+// GETTERS
+// ============================================================================
+
+int RoboticArmMachine::getCurrentState() const {
+    return currentState;
 }
 
-void RoboticArmMachine::enterStart()
-{
-}
-void RoboticArmMachine::exitStart()
-{
-}
-void RoboticArmMachine::enterConnected()
-{
-    setLedState(true, false); // LED verde acceso
-    this->networkConnected = true;
-}
-void RoboticArmMachine::exitConnected()
-{
-}
-void RoboticArmMachine::enterWorking()
-{
-    setLedState(true, true); // LED verde e rosso acceso
-    // Esegui operazioni di lavoro
-
-}
-void RoboticArmMachine::exitWorking()
-{
-    setLedState(true, false); // LED verde acceso
+String RoboticArmMachine::getStateString() const {
+    switch (currentState) {
+        case STATE_START:        return "START";
+        case STATE_CONNECTED:    return "CONNECTED";
+        case STATE_WORKING:      return "WORKING";
+        case STATE_PROBLEM_SERVO: return "PROBLEM_SERVO";
+        case STATE_NETWORK_LOST: return "NETWORK_LOST";
+        case STATE_IDLE:         return "IDLE";
+        default:                 return "UNKNOWN";
+    }
 }
 
-void RoboticArmMachine::enterProblemServo()
-{
-    setLedState(false, true); // LED rosso acceso
-}
-void RoboticArmMachine::exitProblemServo()
-{
-    setLedState(false, false); 
+int RoboticArmMachine::getBaseAngle() const {
+    return baseServo->getCurrentAngle();
 }
 
-void RoboticArmMachine::enterNetworkLost()
-{
-    setLedState(false, true); // LED rosso acceso
-    this->networkConnected = false;
+int RoboticArmMachine::getElbowAngle() const {
+    return elbowServo->getCurrentAngle();
 }
 
-void RoboticArmMachine::exitNetworkLost()
-{
-    setLedState(false, false); 
-}
-void RoboticArmMachine::enterIdle()
-{
-    setLedState(true, false); // LED verde acceso
-}
-void RoboticArmMachine::exitIdle()
-{
-    setLedState(false, false); 
+int RoboticArmMachine::getWristAngle() const {
+    return wristServo->getCurrentAngle();
 }
 
-
-
-int RoboticArmMachine::getCurrentState()
-{
-    return this->currentState;
+int RoboticArmMachine::getClawAngle() const {
+    return clawServo->getCurrentAngle();
+}
+/*
+bool RoboticArmMachine::isLedGreenOn() const {
+    // Implementare leggendo stato GPIO
+    return true;
 }
 
-void RoboticArmMachine::tryConnectToNetwork()
-{
+bool RoboticArmMachine::isLedRedOn() const {
+    // Implementare leggendo stato GPIO
+    return true;
+}*/
+
+bool RoboticArmMachine::isButtonWhitePressed() {
+    buttonWhite->sync();
+    return buttonWhite->isPressed();
+}
+
+bool RoboticArmMachine::isButtonBluePressed() {
+    buttonBlue->sync();
+    return buttonBlue->isPressed();
+}
+
+// ============================================================================
+// TRANSIZIONI PUBBLICHE
+// ============================================================================
+
+void RoboticArmMachine::tryConnectToNetwork() {
     if (currentState == STATE_START) {
-        Serial.println("🔌 Tentativo connessione rete in corso...");
-        // Qui implementerai la logica di connessione WiFi/Bluetooth
+        Serial.println("Attempting network connection...");
+        // TODO: Implementare connessione WiFi/Bluetooth
     }
 }
 
 void RoboticArmMachine::connectionEstablished() {
     if (currentState == STATE_START) {
-        Serial.println("✅ Connessione stabilita!");
+        networkConnected = true;
+        Serial.println("Connection established!");
         transitionTo(STATE_CONNECTED);
     }
 }
 
 void RoboticArmMachine::connectionLost() {
-    Serial.println("❌ Connessione persa!");
+    Serial.println("Connection lost!");
     if (currentState != STATE_START && currentState != STATE_NETWORK_LOST) {
+        networkConnected = false;
         transitionTo(STATE_NETWORK_LOST);
     }
 }
 
 void RoboticArmMachine::startWorking() {
     if (currentState == STATE_CONNECTED || currentState == STATE_IDLE) {
-        Serial.println("🚀 Inizio operazioni...");
+        Serial.println("Starting operations...");
         transitionTo(STATE_WORKING);
     }
 }
 
 void RoboticArmMachine::stopWorking() {
     if (currentState == STATE_WORKING) {
-        Serial.println("⏹️  Stop operazioni");
+        Serial.println("⏹️  Stopping operations");
         transitionTo(STATE_IDLE);
     }
 }
 
-void RoboticArmMachine::servoError(String errorMsg)
-{
+void RoboticArmMachine::servoError(String errorMsg) {
+    Serial.printf("SERVO ERROR: %s\n", errorMsg.c_str());
+    this->lastErrorMsg = errorMsg;
+    this->servoErrorFlag = true;
+    transitionTo(STATE_PROBLEM_SERVO);
 }
 
 void RoboticArmMachine::servoErrorResolved() {
-    Serial.println("✅ Errore servo risolto");
-    this->servoError = false;
+    Serial.println("Servo error resolved");
+    this->servoErrorFlag = false;
     this->lastErrorMsg = "";
     transitionTo(STATE_CONNECTED);
 }
@@ -217,37 +231,325 @@ void RoboticArmMachine::receiveCommand(String command) {
     }
 }
 
+// ============================================================================
+// MOVIMENTO SERVO
+// ============================================================================
 
-
-void RoboticArmMachine::moveBaseServo(int angle)
-{
-
+void RoboticArmMachine::moveBaseServo(int angle) {
+    baseServo->moveServo(pwm, angle);
 }
 
-void RoboticArmMachine::moveElbowServo(int angle)
-{
-    this->elbowServo->moveServo(this->pwm, angle);
+void RoboticArmMachine::moveElbowServo(int angle) {
+    elbowServo->moveServo(pwm, angle);
 }
 
-void RoboticArmMachine::moveWristServo(int angle)
-{
-    this->wristServo->moveServo(this->pwm, angle);
+void RoboticArmMachine::moveWristServo(int angle) {
+    wristServo->moveServo(pwm, angle);
 }
 
-void RoboticArmMachine::moveClawServo(int angle)
-{
-    this->clawServo->moveServo(this->pwm, angle);
+void RoboticArmMachine::moveClawServo(int angle) {
+    clawServo->moveServo(pwm, angle);
 }
 
+void RoboticArmMachine::moveAllToSafePosition() {
+    Serial.println("🔒 Moving all servos to SAFE position...");
+    baseServo->moveToSafePosition(pwm);
+    elbowServo->moveToSafePosition(pwm);
+    wristServo->moveToSafePosition(pwm);
+    clawServo->moveToSafePosition(pwm);
+}
+
+void RoboticArmMachine::moveAllToCenter() {
+    Serial.println("📍 Moving all servos to CENTER...");
+    baseServo->moveToCenter(pwm);
+    elbowServo->moveToCenter(pwm);
+    wristServo->moveToCenter(pwm);
+    clawServo->moveToCenter(pwm);
+}
+
+// ============================================================================
+// SETTERS - SICUREZZA
+// ============================================================================
+
+void RoboticArmMachine::setBaseServoLimits(int min, int max) {
+    baseServo->setSafetyLimits(min, max);
+}
+
+void RoboticArmMachine::setElbowServoLimits(int min, int max) {
+    elbowServo->setSafetyLimits(min, max);
+}
+
+void RoboticArmMachine::setWristServoLimits(int min, int max) {
+    wristServo->setSafetyLimits(min, max);
+}
+
+void RoboticArmMachine::setClawServoLimits(int min, int max) {
+    clawServo->setSafetyLimits(min, max);
+}
+
+void RoboticArmMachine::setSafetyEnabled(bool enabled) {
+    baseServo->setSafetyEnabled(enabled);
+    elbowServo->setSafetyEnabled(enabled);
+    wristServo->setSafetyEnabled(enabled);
+    clawServo->setSafetyEnabled(enabled);
+}
+
+// ============================================================================
+// STATO: START
+// ============================================================================
+
+void RoboticArmMachine::enterStart() {
+    setLedState(false, false);
+    stateEntryTime = millis();
+}
+
+void RoboticArmMachine::handleStart() {
+    unsigned long elapsed = millis() - stateEntryTime;
+    
+    // Simula connessione dopo 2 secondi
+    if (elapsed > 2000) {
+        connectionEstablished();
+    }
+}
+
+void RoboticArmMachine::exitStart() {
+    Serial.println("Exit START\n");
+}
+
+// ============================================================================
+// STATO: CONNECTED
+// ============================================================================
+
+void RoboticArmMachine::enterConnected() {
+    setLedState(true, false);
+    stateEntryTime = millis();
+    Serial.println("System ready for commands\n");
+}
+
+void RoboticArmMachine::handleConnected() {
+    // Monitoraggio rete
+    if (millis() - lastNetworkCheck > NETWORK_CHECK_INTERVAL) {
+        checkNetwork();
+        lastNetworkCheck = millis();
+    }
+}
+
+void RoboticArmMachine::exitConnected() {
+    Serial.println("Exit CONNECTED\n");
+}
+
+// ============================================================================
+// STATO: WORKING
+// ============================================================================
+
+void RoboticArmMachine::enterWorking() {
+    setLedState(true, true);  // Entrambi LED accesi
+    stateEntryTime = millis();
+    
+    // Processa comando in sospeso
+    if (pendingCommand.length() > 0) {
+        processCommand(pendingCommand);
+        pendingCommand = "";
+    }
+}
+
+void RoboticArmMachine::handleWorking() {
+    // Controlla salute servo
+    if (millis() - lastServoCheck > SERVO_CHECK_INTERVAL) {
+        checkServoHealth();
+        lastServoCheck = millis();
+    }
+    
+    // Timeout dopo 30 secondi
+    if (millis() - stateEntryTime > 30000) {
+        stopWorking();
+    }
+}
+
+void RoboticArmMachine::exitWorking() {
+    Serial.println("Exit WORKING\n");
+}
+
+// ============================================================================
+// STATO: PROBLEM_SERVO
+// ============================================================================
+
+void RoboticArmMachine::enterProblemServo() {
+    
+    setLedState(false, true);  // Solo LED rosso
+    Serial.printf(" Error: %s\n\n", lastErrorMsg.c_str());
+    
+    bringToSafePosition();
+    stateEntryTime = millis();
+}
+
+void RoboticArmMachine::handleProblemServo() {
+    // Auto-recovery dopo 3 secondi
+    if (millis() - stateEntryTime > ERROR_RECOVERY_TIMEOUT) {
+        servoErrorResolved();
+    }
+}
+
+void RoboticArmMachine::exitProblemServo() {
+    Serial.println("✅ Exit PROBLEM_SERVO\n");
+}
+
+// ============================================================================
+// STATO: NETWORK_LOST
+// ============================================================================
+
+void RoboticArmMachine::enterNetworkLost() {
+    
+    setLedState(false, true);  // Solo LED rosso
+    bringToSafePosition();
+    stateEntryTime = millis();
+}
+
+void RoboticArmMachine::handleNetworkLost() {
+    // Tenta riconnessione
+    if (millis() - lastNetworkCheck > 2000) {
+        Serial.println("🔄 Attempting reconnection...");
+        // TODO: Implementare logica riconnessione
+        lastNetworkCheck = millis();
+    }
+}
+
+void RoboticArmMachine::exitNetworkLost() {
+    Serial.println("✅ Exit NETWORK_LOST\n");
+}
+
+// ============================================================================
+// STATO: IDLE
+// ============================================================================
+
+void RoboticArmMachine::enterIdle() {
+    setLedState(true, false);  // Solo LED verde
+    stateEntryTime = millis();
+    Serial.println("💤 System in standby\n");
+}
+
+void RoboticArmMachine::handleIdle() {
+    // Monitoraggio periodico
+    if (millis() - lastNetworkCheck > NETWORK_CHECK_INTERVAL) {
+        checkNetwork();
+        lastNetworkCheck = millis();
+    }
+}
+
+void RoboticArmMachine::exitIdle() {
+    Serial.println("✅ Exit IDLE\n");
+}
+
+// ============================================================================
+// UTILITY PRIVATE
+// ============================================================================
+
+void RoboticArmMachine::transitionTo(int newState) {
+    if (newState == currentState) return;
+    
+    logStateChange(currentState, newState);
+    previousState = currentState;
+    currentState = newState;
+    
+    // Exit precedente
+    switch (previousState) {
+        case STATE_START:        exitStart();        break;
+        case STATE_CONNECTED:    exitConnected();    break;
+        case STATE_WORKING:      exitWorking();      break;
+        case STATE_PROBLEM_SERVO: exitProblemServo(); break;
+        case STATE_NETWORK_LOST: exitNetworkLost();  break;
+        case STATE_IDLE:         exitIdle();         break;
+    }
+    
+    // Enter nuovo
+    switch (newState) {
+        case STATE_START:        enterStart();       break;
+        case STATE_CONNECTED:    enterConnected();   break;
+        case STATE_WORKING:      enterWorking();     break;
+        case STATE_PROBLEM_SERVO: enterProblemServo(); break;
+        case STATE_NETWORK_LOST: enterNetworkLost(); break;
+        case STATE_IDLE:         enterIdle();        break;
+    }
+}
 
 void RoboticArmMachine::setLedState(bool green, bool red) {
-    digitalWrite(LED_GREEN, green ? HIGH : LOW);
-    digitalWrite(LED_RED, red ? HIGH : LOW);
+    if (green) ledGreen->switchOn();
+    else ledGreen->switchOff();
+    
+    if (red) ledRed->switchOn();
+    else ledRed->switchOff();
+}
 
-    /* Debug */
-    /*String ledState = "LED: ";
-    ledState += green ? "ON" : "OFF";
-    ledState += " ";
-    ledState += red ? "ON" : "OFF";
-    Serial.println(ledState);*/
+void RoboticArmMachine::logStateChange(int oldState, int newState) {
+    String oldStr = (oldState == STATE_START) ? "START" :
+                    (oldState == STATE_CONNECTED) ? "CONNECTED" :
+                    (oldState == STATE_WORKING) ? "WORKING" :
+                    (oldState == STATE_PROBLEM_SERVO) ? "PROBLEM_SERVO" :
+                    (oldState == STATE_NETWORK_LOST) ? "NETWORK_LOST" : "IDLE";
+    
+    String newStr = (newState == STATE_START) ? "START" :
+                    (newState == STATE_CONNECTED) ? "CONNECTED" :
+                    (newState == STATE_WORKING) ? "WORKING" :
+                    (newState == STATE_PROBLEM_SERVO) ? "PROBLEM_SERVO" :
+                    (newState == STATE_NETWORK_LOST) ? "NETWORK_LOST" : "IDLE";
+    
+    Serial.printf("📊 STATE: %s → %s\n\n", oldStr.c_str(), newStr.c_str());
+}
+
+void RoboticArmMachine::checkNetwork() {
+    // TODO: Implementare verifica connessione reale
+    networkConnected = true;
+}
+
+void RoboticArmMachine::checkServoHealth() {
+    // TODO: Implementare controllo salute servo
+    // - Leggere feedback
+    // - Verificare corrente
+}
+
+void RoboticArmMachine::processCommand(String command) {
+    Serial.printf("📨 Processing command: %s\n\n", command.c_str());
+    
+    if (command.startsWith("BASE:")) {
+        int angle = command.substring(5).toInt();
+        moveBaseServo(angle);
+    }
+    else if (command.startsWith("ELBOW:")) {
+        int angle = command.substring(6).toInt();
+        moveElbowServo(angle);
+    }
+    else if (command.startsWith("WRIST:")) {
+        int angle = command.substring(6).toInt();
+        moveWristServo(angle);
+    }
+    else if (command.startsWith("CLAW:")) {
+        int angle = command.substring(5).toInt();
+        moveClawServo(angle);
+    }
+    else if (command == "SAFE") {
+        moveAllToSafePosition();
+    }
+    else if (command == "CENTER") {
+        moveAllToCenter();
+    }
+}
+
+void RoboticArmMachine::bringToSafePosition() {
+    moveAllToSafePosition();
+}
+
+String RoboticArmMachine::getDebugInfo() const {
+    String info = "\n╔════════════════════════════════════╗\n";
+    info += "║  DEBUG INFO                        ║\n";
+    info += "╚════════════════════════════════════╝\n\n";
+    
+    info += "State: " + getStateString() + "\n";
+    info += "Base: " + String(baseServo->getCurrentAngle()) + "°\n";
+    info += "Elbow: " + String(elbowServo->getCurrentAngle()) + "°\n";
+    info += "Wrist: " + String(wristServo->getCurrentAngle()) + "°\n";
+    info += "Claw: " + String(clawServo->getCurrentAngle()) + "°\n";
+    info += "Network: " + String(networkConnected ? "Connected" : "Disconnected") + "\n";
+    info += "Error: " + String(servoErrorFlag ? lastErrorMsg : "None") + "\n\n";
+    
+    return info;
 }

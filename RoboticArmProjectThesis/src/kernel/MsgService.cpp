@@ -28,7 +28,7 @@ Msg *MsgServiceClass::receiveMsg()
 
 void MsgServiceClass::init()
 {
-  Serial.begin(9600);
+  Serial.begin(115200);
   content.reserve(256);
   content = "";
   currentMsg = NULL;

@@ -20,8 +20,8 @@ RoboticArmMachine::RoboticArmMachine()
 
     if (error != 0)
     {
-        Serial.printf("❌ ERRORE: PCA9685 non trovato all'indirizzo 0x%02X\n", PCA9685_ADDRESS);
-        Serial.println("⚙️  Verifica collegamenti I2C!");
+        Serial.printf("ERRORE: PCA9685 non trovato all'indirizzo 0x%02X\n", PCA9685_ADDRESS);
+        Serial.println("Verifica collegamenti I2C!");
         Serial.println("   - SDA (D2) collegato?");
         Serial.println("   - SCL (D1) collegato?");
         Serial.println("   - PCA9685 VCC collegato a 3.3V ESP8266?");

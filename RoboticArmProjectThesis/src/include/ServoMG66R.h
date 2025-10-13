@@ -1,40 +1,45 @@
+/*******************************************************************************
+ * SERVO MOTOR MG66R - CLASSE DERIVATA
+ * 
+ * Servo ad alta coppia 11kg/cm
+ * Range: 0-180°
+ * Tensione: 4.8-6.6V
+ * Velocità: 0.19s/60°
+ ******************************************************************************/
+
 #ifndef __SERVO_MOTOR_MG66R__
 #define __SERVO_MOTOR_MG66R__
 
-#include <arduino.h>
-#include <Adafruit_PWMServoDriver.h>
-#include <Servo.h>
-
-#define SERVOMIN 102 // 500μs  → 0°
-#define SERVOMAX 512 // 2500μs → 180°
-#define SERVOMID 307 // 1500μs → 90° (centro)
-
-#define MIN_ANGLE 0
-#define MAX_ANGLE 180
-
-class ServoMotorMG66R
-{
-
-public:
-  ServoMotorMG66R(int channel);
-
-  void moveServo(Adafruit_PWMServoDriver pwm, float angle);
-  void on();
-  void off();
-  void fullyOpen();
-  void close();
-  void openDegree(int angle);
-
-private:
-  int channel;
-  int currentAngle = 90; // Posizione attuale
-  Servo motor;
-};
+#include "ServoBase.h"
 
 /**
- * Muove servo a posizione specificata
- * @param channel Canale PCA9685 (0-15)
- * @param angle Angolo desiderato (0-180)
+ * Servo MG66R specializzato
+ * Eredita da ServoMotor
  */
+class ServoMotorMG66R : public ServoMotor {
+
+public:
+    /**
+     * Costruttore con range personalizzabile
+     * 
+     * Esempio uso:
+     * - ServoMotorMG66R elbow(4);                    // Full range 0-180°
+     * - ServoMotorMG66R elbow(4, -1, -1, 60, 120);   // Safe range 60-120°
+     * 
+     * @param channel  Canale PCA9685 (0-15)
+     * @param safeMin  Limite minimo di sicurezza (default -1 = no limit)
+     * @param safeMax  Limite massimo di sicurezza (default -1 = no limit)
+     */
+    ServoMotorMG66R(
+        int channel,
+        int safeMin = -1,
+        int safeMax = -1
+    );
+    
+    /**
+     * Override per aggiungere metodi specifici MG66R
+     */
+    void calibrate();
+};
 
 #endif

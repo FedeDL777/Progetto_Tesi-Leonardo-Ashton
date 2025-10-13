@@ -43,6 +43,7 @@ public:
     // State management
     void transitionTo(int newState);
     void logStateChange(int oldState, int newState);
+    
     void enterStart();
     void exitStart();
     void enterConnected();

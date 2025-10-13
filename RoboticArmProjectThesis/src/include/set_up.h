@@ -14,8 +14,8 @@
 
 #define LED_GREEN D0
 #define LED_RED D8
-#define BUTTON_PIN D5
-#define BUTTON_PIN D6
+#define BUTTON_WHITE_PIN D5
+#define BUTTON_BLUE_PIN D6
 // Indirizzo I2C PCA9685 (default 0x40)
 #define PCA9685_ADDRESS 0x40
 

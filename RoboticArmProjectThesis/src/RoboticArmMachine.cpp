@@ -49,12 +49,12 @@ RoboticArmMachine::RoboticArmMachine()
     // Crea servo motori
     // ==========================================
     // Full range servo
-    this->baseServo = new ServoMotor20Diy(BASE_SERVO, 0, 180);
-    this->elbowServo = new ServoMotor20Diy(SERVO_ELBOW, 0, 180);
+    this->baseServo = new ServoMotor20Diy(BASE_SERVO, 0, MAX_RANGE);
+    this->elbowServo = new ServoMotor20Diy(SERVO_ELBOW, 0, MAX_RANGE_ELBOW);
 
     // Limited range servo (per sicurezza)
-    this->wristServo = new ServoMotorMG66R(SERVO_WRIST, 0, 180);
-    this->clawServo = new ServoMotorMG66R(SERVO_CLAW, 60, 120);
+    this->wristServo = new ServoMotorMG66R(SERVO_WRIST, 0, MAX_RANGE);
+    this->clawServo = new ServoMotorMG66R(SERVO_CLAW, SAFE_MIN_RANGE_CLAW, SAFE_MAX_RANGE_CLAW);
 
     Serial.println("Servo motors initialized\n");
 
@@ -289,16 +289,16 @@ void RoboticArmMachine::moveClawServo(int angle)
 
 void RoboticArmMachine::moveAllToSafePosition()
 {
-    Serial.println("🔒 Moving all servos to SAFE position...");
-    baseServo->moveToSafePosition(pwm);
-    elbowServo->moveToSafePosition(pwm);
-    wristServo->moveToSafePosition(pwm);
-    clawServo->moveToSafePosition(pwm);
+    Serial.println("Moving all servos to SAFE position...");
+    baseServo->moveToSafePosition(pwm, SAFE_RANGE_DEFAULT);
+    elbowServo->moveToSafePosition(pwm, SAFE_MIN_RANGE_ELBOW);
+    wristServo->moveToSafePosition(pwm, SAFE_RANGE_DEFAULT);
+    clawServo->moveToSafePosition(pwm, SAFE_RANGE_DEFAULT);
 }
 
 void RoboticArmMachine::moveAllToCenter()
 {
-    Serial.println("📍 Moving all servos to CENTER...");
+    Serial.println("Moving all servos to CENTER...");
     baseServo->moveToCenter(pwm);
     elbowServo->moveToCenter(pwm);
     wristServo->moveToCenter(pwm);
@@ -327,6 +327,14 @@ void RoboticArmMachine::setWristServoLimits(int min, int max)
 void RoboticArmMachine::setClawServoLimits(int min, int max)
 {
     clawServo->setSafetyLimits(min, max);
+}
+
+bool RoboticArmMachine::areAllAngleSafe()
+{
+    return baseServo->isAngleSafe(this->baseServo->getCurrentAngle()) &&
+           elbowServo->isAngleSafe(this->elbowServo->getCurrentAngle()) &&
+           wristServo->isAngleSafe(this->wristServo->getCurrentAngle()) &&
+           clawServo->isAngleSafe(this->clawServo->getCurrentAngle());
 }
 
 void RoboticArmMachine::setSafetyEnabled(bool enabled)

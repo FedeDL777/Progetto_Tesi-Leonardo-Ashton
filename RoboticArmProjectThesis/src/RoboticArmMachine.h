@@ -17,6 +17,15 @@
 #include "include/Button.h"
 #include <Adafruit_PWMServoDriver.h>
 
+#define MAX_RANGE 180
+#define MIN_RANGE 0
+#define SAFE_RANGE_DEFAULT 90
+#define SAFE_MIN_RANGE_ELBOW 23
+#define MAX_RANGE_ELBOW 137
+#define SAFE_MIN_RANGE_CLAW 60
+#define SAFE_MAX_RANGE_CLAW 120
+
+
 enum RobotStateEnum
 {
     STATE_START = 0,
@@ -98,7 +107,7 @@ public:
     void setElbowServoLimits(int min, int max);
     void setWristServoLimits(int min, int max);
     void setClawServoLimits(int min, int max);
-
+    bool areAllAngleSafe();
     /**
      * Abilita/disabilita controlli di sicurezza
      */

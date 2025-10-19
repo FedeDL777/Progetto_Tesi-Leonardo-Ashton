@@ -94,7 +94,7 @@ public:
     /**
      * Muove servo alla posizione di sicurezza
      */
-    void moveToSafePosition(Adafruit_PWMServoDriver pwm);
+    void moveToSafePosition(Adafruit_PWMServoDriver pwm, int angle);
     
     // ========================================
     // GETTERS

@@ -1,7 +1,6 @@
 #include <esp_now.h>
 #include <WiFi.h>
-
-uint8_t receiverAddress[] = {0xF4, 0x65, 0x0B, 0x41, 0x43, 0xDC}; //MAC dell'altra ESP32
+uint8_t receiverAddress[] = {0x68, 0x25, 0xDD, 0x20, 0x00, 0xF0}; //MAC dell'altra ESP32
 int counter = 0;
 
 // Callback di conferma invio

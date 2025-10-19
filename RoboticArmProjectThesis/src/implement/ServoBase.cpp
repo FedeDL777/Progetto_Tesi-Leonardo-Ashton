@@ -123,8 +123,8 @@ void ServoMotor::moveToCenter(Adafruit_PWMServoDriver pwm) {
     moveServo(pwm, center);
 }
 
-void ServoMotor::moveToSafePosition(Adafruit_PWMServoDriver pwm) {
-    int safePos = (safeMinAngle + safeMaxAngle) / 2;
+void ServoMotor::moveToSafePosition(Adafruit_PWMServoDriver pwm, int angle) {
+    int safePos = angle;
     Serial.printf("Movimento a SAFE POSITION (%d°)\n", safePos);
     moveServo(pwm, safePos);
 }

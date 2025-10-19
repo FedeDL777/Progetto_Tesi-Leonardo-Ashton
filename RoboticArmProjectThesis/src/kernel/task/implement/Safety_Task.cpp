@@ -1,5 +1,18 @@
 #include "kernel/task/include/Safety_Task.h"
 
+SafetyMonitorTask::SafetyMonitorTask(RoboticArmMachine* machine) {
+    this->machine = machine;
+    this->lastWhiteButtonState = false;
+    this->lastBlueButtonState = false;
+    this->lastWhiteDebounce = 0;
+    this->lastBlueDebounce = 0;
+    this->emergencyStops = 0;
+    
+    Serial.println("SafetyMonitorTask created");
+}
+
+
+
 void SafetyMonitorTask::tick() {
     checkEmergencyButtons();
     checkServoLimits();

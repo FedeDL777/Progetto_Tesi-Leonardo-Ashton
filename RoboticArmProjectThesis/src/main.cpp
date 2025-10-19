@@ -35,14 +35,23 @@ void setup() {
     // Inizializza scheduler
     scheduler.init(50);  // 50ms base period
     
+    commTask = new CommunicationTask_ESPNOW(machine);
+    
+    // ⚠️ IMPORTANTE: Inizializza ESP-NOW PRIMA di addTask!
+    if (!commTask->initESPNow()) {
+        Serial.println("Errore ESP-NOW!");
+        while(1) delay(1000);
+    }
+    
+    commTask->init(50);
+    scheduler.addTask(commTask);
+    
+
     // Crea e registra task
     //fsmTask = new FSMTask(machine);
     //fsmTask->init(50);  // 50ms (20Hz) - CRITICO
     //scheduler.addTask(fsmTask);
-    
-    commTask = new CommunicationTask_ESPNOW(machine);
-    commTask->init(50);  // 50ms (20Hz) - ALTA PRIORITÀ
-    scheduler.addTask(commTask);
+
     
     motionTask = new MotionControlTask(machine);
     motionTask->init(100);  // 100ms (10Hz) - MEDIA PRIORITÀ

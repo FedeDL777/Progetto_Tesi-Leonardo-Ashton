@@ -1,9 +1,11 @@
 /*******************************************************************************
- * CONTROLLER ESP32 - ESP-NOW SENDER
+ * CONTROLLER ESP32 - ESP-NOW SENDER (VERSIONE CON PRESSIONE CONTINUA)
  * 
  * Controller wireless per braccio robotico
- * Usa 6 pulsanti per controllare Base, Elbow, Wrist
+ * Usa 8 pulsanti per controllare Base, Elbow, Wrist, Claw
  * Invia comandi via ESP-NOW al braccio robotico
+ * 
+ * NOVITÀ: Pressione continua invia comandi ripetuti
  * 
  * Autore: Federico De Leonardis
  ******************************************************************************/
@@ -13,36 +15,44 @@
 #include "include/Button.h"
 #include "include/set_up.h"
 
+// ============================================================================
+// PARAMETRI CONFIGURABILI
+// ============================================================================
 
-// Parametri invio
-const unsigned long SEND_INTERVAL = 100;  // ms tra invii (10Hz)
-const unsigned long HEARTBEAT_INTERVAL = 2000;  // ms tra heartbeat (0.5Hz)
+const unsigned long SEND_INTERVAL = 100;           // ms tra invii (10Hz)
+const unsigned long HEARTBEAT_INTERVAL = 2000;     // ms tra heartbeat (0.5Hz)
+const unsigned long REPEAT_INTERVAL = 200;         // ms tra comandi ripetuti durante pressione continua
 
 // ============================================================================
 // VARIABILI GLOBALI
 // ============================================================================
 
 // Pulsanti con debouncing automatico
-Button base_sx(YELLOW_BASE_SX, true);   // INPUT_PULLUP
-Button base_dx(YELLOW_BASE_DX, true);
-Button elbow_sx(WHITE_ELBOW_SX, true);
-Button elbow_dx(WHITE_ELBOW_DX, true);
-Button wrist_sx(BLUE_WRIST_SX, true);
-Button wrist_dx(BLUE_WRIST_DX, true);
+Button base_sx(YELLOW_BASE_SX, false);
+Button base_dx(YELLOW_BASE_DX, false);
+Button elbow_sx(WHITE_ELBOW_SX, false);
+Button elbow_dx(WHITE_ELBOW_DX, false);
+Button wrist_sx(BLUE_WRIST_SX, false);
+Button wrist_dx(BLUE_WRIST_DX, false);
+Button claw_sx(YELLOW_CLAW_SX, false);
+Button claw_dx(YELLOW_CLAW_DX, false);
 
-// Struttura mappatura pulsanti
+// Struttura mappatura pulsanti con timestamp per ripetizione
 struct ButtonMapping {   
     Button* btn;
     const char* label;
+    unsigned long lastRepeatTime;  // Timestamp ultimo invio
 };
 
 ButtonMapping buttons[] = {
-    {&base_sx,  "Base SX"},
-    {&base_dx,  "Base DX"},
-    {&elbow_sx, "Elbow SX"},
-    {&elbow_dx, "Elbow DX"},
-    {&wrist_sx, "Wrist SX"},
-    {&wrist_dx, "Wrist DX"}
+    {&base_sx,  "Base SX", 0},
+    {&base_dx,  "Base DX", 0},
+    {&elbow_sx, "Elbow SX", 0},
+    {&elbow_dx, "Elbow DX", 0},
+    {&wrist_sx, "Wrist SX", 0},
+    {&wrist_dx, "Wrist DX", 0},
+    {&claw_sx,  "Claw Open", 0},
+    {&claw_dx,  "Claw Close", 0}
 };
 
 const int NUM_BUTTONS = sizeof(buttons) / sizeof(buttons[0]);
@@ -61,36 +71,28 @@ int messagesFailed = 0;
 // CALLBACK ESP-NOW
 // ============================================================================
 
-/**
- * Callback invocata quando un messaggio viene inviato
- * Permette di monitorare stato connessione
- */
 void onDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
-    // Aggiorna stato connessione
     if (status == ESP_NOW_SEND_SUCCESS) {
         isConnected = true;
         lastSuccessTime = millis();
         messagesSent++;
         
-        // Log solo occasionalmente per non intasare seriale
-        if (messagesSent % 10 == 0) {
-            Serial.printf("✅ %d messaggi inviati con successo\n", messagesSent);
+        // Log ridotto per evitare spam
+        if (messagesSent % 20 == 0) {
+            Serial.printf("✅ %d messaggi inviati\n", messagesSent);
         }
     }
     else {
         messagesFailed++;
         
-        // Dopo 3 fallimenti consecutivi, disconnetti
         if (millis() - lastSuccessTime > 3000) {
             isConnected = false;
         }
         
-        Serial.print("Invio fallito a ");
-        for (int i = 0; i < 6; i++) {
-            Serial.printf("%02X", mac_addr[i]);
-            if (i < 5) Serial.print(":");
+        // Log errori solo occasionalmente
+        if (messagesFailed % 5 == 0) {
+            Serial.printf("❌ Errori: %d\n", messagesFailed);
         }
-        Serial.println();
     }
 }
 
@@ -98,31 +100,21 @@ void onDataSent(const uint8_t* mac_addr, esp_now_send_status_t status) {
 // FUNZIONI UTILITY
 // ============================================================================
 
-/**
- * Inizializza ESP-NOW
- */
 bool initESPNow() {
     Serial.println("\nInizializzazione ESP-NOW...");
     
-    // Imposta WiFi in modalità Station
     WiFi.mode(WIFI_STA);
-    
-    // Stampa MAC address controller
     Serial.print("   Controller MAC: ");
     Serial.println(WiFi.macAddress());
     
-    // Inizializza ESP-NOW
     if (esp_now_init() != ESP_OK) {
         Serial.println("Errore inizializzazione ESP-NOW");
         return false;
     }
     
     Serial.println("ESP-NOW inizializzato");
-    
-    // Registra callback invio
     esp_now_register_send_cb(onDataSent);
     
-    // Aggiungi peer (braccio robotico)
     esp_now_peer_info_t peerInfo = {};
     memcpy(peerInfo.peer_addr, receiverAddress, 6);
     peerInfo.channel = 0;
@@ -143,16 +135,12 @@ bool initESPNow() {
     return true;
 }
 
-/**
- * Invia messaggio al braccio robotico
- */
 bool sendMessage(const char* message) {
-    // Throttling: non inviare troppo velocemente
+    // Throttling globale
     if (millis() - lastSendTime < SEND_INTERVAL) {
         return false;
     }
     
-    // Invia messaggio
     esp_err_t result = esp_now_send(
         receiverAddress,
         (uint8_t*)message,
@@ -162,18 +150,15 @@ bool sendMessage(const char* message) {
     lastSendTime = millis();
     
     if (result == ESP_OK) {
-        Serial.printf("📤 Inviato: \"%s\"\n", message);
+        Serial.printf("📤 %s\n", message);
         return true;
     }
     else {
-        Serial.printf("⚠️ Errore invio: %d\n", result);
+        Serial.printf("⚠️ Errore: %d\n", result);
         return false;
     }
 }
 
-/**
- * Invia heartbeat periodico per mantenere connessione
- */
 void sendHeartbeat() {
     if (millis() - lastHeartbeatTime > HEARTBEAT_INTERVAL) {
         sendMessage("HEARTBEAT");
@@ -181,13 +166,10 @@ void sendHeartbeat() {
     }
 }
 
-/**
- * Stampa statistiche periodicamente
- */
 void printStats() {
     static unsigned long lastStatsTime = 0;
     
-    if (millis() - lastStatsTime > 10000) {  // Ogni 10 secondi
+    if (millis() - lastStatsTime > 15000) {  // Ogni 15 secondi
         Serial.println("\n╔════════════════════════════════════╗");
         Serial.println("║  STATISTICHE CONTROLLER            ║");
         Serial.println("╚════════════════════════════════════╝");
@@ -203,25 +185,6 @@ void printStats() {
     }
 }
 
-/**
- * Gestisce LED stato (se presente)
- * Blink veloce = disconnesso
- * Blink lento = connesso
- */
-void updateStatusLED() {
-    // Se hai un LED di stato, aggiungi qui la logica
-    // Esempio:
-    // static bool ledState = false;
-    // static unsigned long lastBlink = 0;
-    // unsigned long blinkInterval = isConnected ? 1000 : 250;
-    // 
-    // if (millis() - lastBlink > blinkInterval) {
-    //     ledState = !ledState;
-    //     digitalWrite(LED_PIN, ledState);
-    //     lastBlink = millis();
-    // }
-}
-
 // ============================================================================
 // SETUP
 // ============================================================================
@@ -232,9 +195,9 @@ void setup() {
     
     Serial.println("\n╔════════════════════════════════════╗");
     Serial.println("║  CONTROLLER ESP32 - ESP-NOW        ║");
+    Serial.println("║  (Versione Pressione Continua)     ║");
     Serial.println("╚════════════════════════════════════╝\n");
     
-    // Inizializza ESP-NOW
     if (!initESPNow()) {
         Serial.println("❌ Inizializzazione fallita!");
         Serial.println("   Riavvio in 5 secondi...");
@@ -242,22 +205,22 @@ void setup() {
         ESP.restart();
     }
     
-    // Inizializza LED stato (opzionale)
-    // pinMode(LED_PIN, OUTPUT);
-    
     Serial.println("╔════════════════════════════════════╗");
     Serial.println("║  Controller pronto!                ║");
-    Serial.println("║  Premi i pulsanti per controllare  ║");
+    Serial.println("║  Tieni premuto per azione continua ║");
     Serial.println("╚════════════════════════════════════╝\n");
     
     Serial.println("Mappatura pulsanti:");
     Serial.println("  • Base SX/DX   → Giallo (GPIO14/27)");
     Serial.println("  • Elbow SX/DX  → Bianco (GPIO26/25)");
-    Serial.println("  • Wrist SX/DX  → Blu (GPIO33/32)\n");
+    Serial.println("  • Wrist SX/DX  → Blu (GPIO33/32)");
+    Serial.println("  • Claw Open/Close → Giallo (GPIO12/13)\n");
+    Serial.println("💡 Tieni premuto per movimento continuo!");
+    Serial.println("   Intervallo ripetizione: 200ms\n");
 }
 
 // ============================================================================
-// LOOP
+// LOOP - GESTIONE PRESSIONE CONTINUA
 // ============================================================================
 
 void loop() {
@@ -265,15 +228,49 @@ void loop() {
     // Aggiorna stato pulsanti
     // ========================================
     
-    String commandsToSend = "";
-    
     for (int i = 0; i < NUM_BUTTONS; i++) {
         buttons[i].btn->update();
-        
-        // Se pulsante premuto (evento)
-        if (buttons[i].btn->wasPressed()) {
-            Serial.printf("Pulsante premuto: %s\n", buttons[i].label);
-            commandsToSend += String(buttons[i].label) + " ";
+    }
+    
+    // ========================================
+    // Raccogli comandi da inviare
+    // ========================================
+    
+    String commandsToSend = "";
+    bool anyButtonPressed = false;
+    
+    for (int i = 0; i < NUM_BUTTONS; i++) {
+        // Verifica se pulsante è attualmente premuto
+        if (buttons[i].btn->isPressed()) {
+            anyButtonPressed = true;
+            
+            // Verifica se è il momento di ripetere il comando
+            unsigned long now = millis();
+            
+            // Prima pressione O tempo di ripetizione trascorso
+            if (buttons[i].lastRepeatTime == 0 || 
+                (now - buttons[i].lastRepeatTime) >= REPEAT_INTERVAL) {
+                
+                // Aggiungi comando alla lista
+                commandsToSend += String(buttons[i].label) + " ";
+                
+                // Aggiorna timestamp
+                buttons[i].lastRepeatTime = now;
+                
+                // Log prima pressione vs ripetizione
+                if (buttons[i].btn->wasPressed()) {
+                    Serial.printf("🔵 Premuto: %s (inizio)\n", buttons[i].label);
+                } else {
+                    Serial.printf("🔄 Ripeto: %s\n", buttons[i].label);
+                }
+            }
+        }
+        else {
+            // Pulsante rilasciato, resetta timestamp
+            if (buttons[i].lastRepeatTime > 0) {
+                Serial.printf("⚪ Rilasciato: %s\n", buttons[i].label);
+                buttons[i].lastRepeatTime = 0;
+            }
         }
     }
     
@@ -282,28 +279,21 @@ void loop() {
     // ========================================
     
     if (commandsToSend.length() > 0) {
-        commandsToSend.trim();  // Rimuovi spazio finale
+        commandsToSend.trim();
         
-        char message[64];
+        char message[128];
         snprintf(message, sizeof(message), "%s", commandsToSend.c_str());
         
         sendMessage(message);
     }
     
     // ========================================
-    // Heartbeat periodico
+    // Heartbeat periodico (solo se nessun pulsante premuto)
     // ========================================
     
-    // Solo se non ci sono comandi da inviare
-    if (commandsToSend.length() == 0) {
+    if (!anyButtonPressed) {
         sendHeartbeat();
     }
-    
-    // ========================================
-    // Aggiorna LED stato
-    // ========================================
-    
-    updateStatusLED();
     
     // ========================================
     // Statistiche periodiche
@@ -315,36 +305,13 @@ void loop() {
     // Delay minimo
     // ========================================
     
-    delay(10);  // Piccolo delay per stabilità
+    delay(10);
 }
 
 // ============================================================================
-// FUNZIONI AVANZATE (OPZIONALI)
+// FUNZIONI DEBUG (OPZIONALI)
 // ============================================================================
 
-/**
- * Riavvia controller in caso di problemi
- */
-void checkHealthAndRestart() {
-    static unsigned long lastHealthCheck = 0;
-    
-    if (millis() - lastHealthCheck > 30000) {  // Ogni 30 secondi
-        // Se troppi fallimenti, riavvia
-        if (messagesFailed > 100 && 
-            (messagesSent * 100 / (messagesSent + messagesFailed)) < 50) {
-            
-            Serial.println("\n⚠️ Troppi errori! Riavvio...");
-            delay(2000);
-            ESP.restart();
-        }
-        
-        lastHealthCheck = millis();
-    }
-}
-
-/**
- * Gestione comandi seriali per debug
- */
 void handleSerialCommands() {
     if (Serial.available()) {
         String cmd = Serial.readStringUntil('\n');
@@ -368,11 +335,20 @@ void handleSerialCommands() {
             Serial.println("Invio messaggio di test...");
             sendMessage("CENTER");
         }
+        else if (cmd.startsWith("repeat:")) {
+            // Cambia intervallo ripetizione dinamicamente
+            // Esempio: "repeat:300" → imposta 300ms
+            int newInterval = cmd.substring(7).toInt();
+            if (newInterval >= 50 && newInterval <= 1000) {
+                // NOTA: Dovresti rendere REPEAT_INTERVAL modificabile
+                Serial.printf("⚙️ Intervallo ripetizione: %dms\n", newInterval);
+            }
+        }
         else if (cmd == "help") {
             Serial.println("\n=== COMANDI DISPONIBILI ===");
-            Serial.println("stats    → Mostra statistiche dettagliate");
+            Serial.println("stats    → Statistiche dettagliate");
             Serial.println("restart  → Riavvia controller");
-            Serial.println("test     → Invia comando di test (CENTER)");
+            Serial.println("test     → Invia comando CENTER");
             Serial.println("help     → Mostra questo messaggio");
             Serial.println();
         }

@@ -101,6 +101,22 @@ void moveWristRight() {
     machine->moveWristServo(newAngle);
 }
 
+void moveClawOpen() {
+    int currentAngle = machine->getClawAngle();
+    int newAngle = currentAngle + ANGLE_STEP;
+    
+    Serial.printf("➡️  Claw Open: %d° → %d°\n", currentAngle, newAngle);
+    machine->moveClawServo(newAngle);
+}
+
+void moveClawClose() {
+    int currentAngle = machine->getClawAngle();
+    int newAngle = currentAngle - ANGLE_STEP;
+    
+    Serial.printf("⬅️  Claw Close: %d° → %d°\n", currentAngle, newAngle);
+    machine->moveClawServo(newAngle);
+}
+
 // ============================================================================
 // ESP-NOW CALLBACK
 // ============================================================================
@@ -164,6 +180,14 @@ void onReceive(const uint8_t *mac, const uint8_t *incomingData, int len) {
     else if (message.indexOf("Wrist DX") >= 0) {
         moveWristRight();
     }
+    else if (message.indexOf("Claw Open") >= 0) {
+        moveClawOpen();
+    }
+    else if (message.indexOf("Claw Close") >= 0) {
+        moveClawClose();
+    }
+
+
     else if (message.indexOf("Safe") >= 0) {
         Serial.println("🔒 Posizione sicura richiesta");
         machine->moveAllToSafePosition();

@@ -57,13 +57,24 @@ public:
      * @param duration  Durata movimento in ms
      * @param steps     Numero step (default 50)
      */
+    /*
     void moveServoSmooth(
         Adafruit_PWMServoDriver pwm,
         float angle,
         uint16_t duration,
         uint16_t steps = 50
     );
+    */
     
+    void startSmoothMove(Adafruit_PWMServoDriver pwm, float targetAngle, uint16_t duration, uint16_t steps);
+    
+    // NUOVO: Aggiorna movimento (chiamato dallo scheduler)
+    bool updateSmoothMove(Adafruit_PWMServoDriver pwm);  // Ritorna true se completato
+    
+    
+    // Cancella movimento
+    void stopMove();
+
     /**
      * Sposta servo di X gradi dalla posizione attuale
      * 
@@ -175,6 +186,14 @@ protected:
     unsigned long moveDuration;
     float moveStartAngle;
     float moveTargetAngle;
+
+
+    float moveStartAngle;
+    float moveTargetAngle;
+    unsigned long moveStartTime;
+    uint16_t moveDuration;
+    uint16_t moveSteps;
+
     
     // ========================================
     // UTILITY PROTETTE

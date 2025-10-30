@@ -11,6 +11,9 @@
 #define WHITE_ELBOW_DX 25 // GPIO25 → pulsante bianco destra del gomito
 #define BLUE_WRIST_SX 33  // GPIO33 → pulsante blu sinistra del polso
 #define BLUE_WRIST_DX 32  // GPIO32 → pulsante blu destra del polso
+#define YELLOW_CLAW_SX 12  // GPIO35 → pulsante giallo sinistra della pinza
+#define YELLOW_CLAW_DX 13  // GPIO15 → pulsante giallo destra della pinza
+
 uint8_t receiverAddress[] = {0x68, 0x25, 0xDD, 0x20, 0x00, 0xF0};
 
 

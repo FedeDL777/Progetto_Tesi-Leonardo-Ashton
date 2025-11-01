@@ -1,4 +1,3 @@
-
 #ifndef __SERVO_MOTOR_BASE__
 #define __SERVO_MOTOR_BASE__
 
@@ -7,24 +6,13 @@
 
 /**
  * Classe base per tutti i servo motori
- * 
- * Caratteristiche:
- * - Range di movimento personalizzabile
- * - Limiti di sicurezza configurabili
- * - Tracking posizione attuale
- * - Conversione automatica angolo → PWM
+ * Supporta movimenti NON-BLOCCANTI per scheduler
  */
 class ServoMotor {
 
 public:
     /**
-     * @param channel    Canale PCA9685 (0-15)
-     * @param minPulse   PWM minimo (default 102 = 500μs)
-     * @param maxPulse   PWM massimo (default 512 = 2500μs)
-     * @param minAngle   Angolo minimo di movimento (default 0°)
-     * @param maxAngle   Angolo massimo di movimento (default 180°)
-     * @param safeMin    Limite di sicurezza minimo (default = minAngle)
-     * @param safeMax    Limite di sicurezza massimo (default = maxAngle)
+     * Costruttore
      */
     ServoMotor(
         int channel,
@@ -37,182 +25,116 @@ public:
     );
     
     // ========================================
-    // MOVIMENTO SERVO
+    // MOVIMENTO IMMEDIATO
     // ========================================
     
     /**
-     * Muove servo a angolo specificato
-     * Applica i limiti di sicurezza
-     * 
-     * @param pwm   Oggetto PCA9685
-     * @param angle Angolo desiderato (0-180)
+     * Muove servo istantaneamente all'angolo specificato
      */
-    void moveServo(Adafruit_PWMServoDriver pwm, float angle);
+    void moveServo(Adafruit_PWMServoDriver& pwm, float angle);
     
     /**
-     * Muove servo lentamente
-     * 
-     * @param pwm       Oggetto PCA9685
-     * @param angle     Angolo desiderato
-     * @param duration  Durata movimento in ms
-     * @param steps     Numero step (default 50)
+     * Muove servo relativamente alla posizione attuale
      */
-    /*
-    void moveServoSmooth(
-        Adafruit_PWMServoDriver pwm,
-        float angle,
-        uint16_t duration,
-        uint16_t steps = 50
+    void moveRelative(Adafruit_PWMServoDriver& pwm, int delta);
+    
+    // ========================================
+    // MOVIMENTO SMOOTH NON-BLOCCANTE
+    // ========================================
+    
+    /**
+     * Avvia movimento smooth (NON-BLOCCANTE)
+     * Da chiamare UNA VOLTA per iniziare il movimento
+     * 
+     * @param pwm         Driver PWM
+     * @param targetAngle Angolo destinazione
+     * @param duration    Durata totale (ms)
+     * @param steps       Numero di step (ignorato, usa tempo)
+     */
+    void startSmoothMove(
+        Adafruit_PWMServoDriver& pwm, 
+        float targetAngle, 
+        uint16_t duration, 
+        uint16_t steps = 0  // Ignorato, compatibilità
     );
-    */
     
-    void startSmoothMove(Adafruit_PWMServoDriver pwm, float targetAngle, uint16_t duration, uint16_t steps);
-    
-    // NUOVO: Aggiorna movimento (chiamato dallo scheduler)
-    bool updateSmoothMove(Adafruit_PWMServoDriver pwm);  // Ritorna true se completato
-    
-    
-    // Cancella movimento
-    void stopMove();
-
     /**
-     * Sposta servo di X gradi dalla posizione attuale
+     * Aggiorna movimento smooth in corso
+     * Da chiamare CONTINUAMENTE dallo scheduler
      * 
-     * @param pwm   Oggetto PCA9685
-     * @param delta Incremento/decremento gradi
+     * @param pwm Driver PWM
+     * @return true se movimento completato, false altrimenti
      */
-    void moveRelative(Adafruit_PWMServoDriver pwm, int delta);
+    bool updateSmoothMove(Adafruit_PWMServoDriver& pwm);
+    
+    /**
+     * Ferma movimento in corso
+     */
+    void stopMove();
     
     // ========================================
     // POSIZIONI PREDEFINITE
     // ========================================
     
-    /**
-     * Muove servo alla posizione minima
-     */
-    void moveToMin(Adafruit_PWMServoDriver pwm);
-    
-    /**
-     * Muove servo alla posizione massima
-     */
-    void moveToMax(Adafruit_PWMServoDriver pwm);
-    
-    /**
-     * Muove servo al centro (min + max) / 2
-     */
-    void moveToCenter(Adafruit_PWMServoDriver pwm);
-    
-    /**
-     * Muove servo alla posizione di sicurezza
-     */
-    void moveToSafePosition(Adafruit_PWMServoDriver pwm, int angle);
+    void moveToMin(Adafruit_PWMServoDriver& pwm);
+    void moveToMax(Adafruit_PWMServoDriver& pwm);
+    void moveToCenter(Adafruit_PWMServoDriver& pwm);
+    void moveToSafePosition(Adafruit_PWMServoDriver& pwm, int angle);
     
     // ========================================
     // GETTERS
     // ========================================
     
-    /**
-     * Ritorna angolo attuale
-     */
     int getCurrentAngle() const;
-    
-    /**
-     * Ritorna channel PCA9685
-     */
     int getChannel() const;
-    
-    /**
-     * Ritorna true se servo è in movimento
-     */
     bool isMoving() const;
-    
-    /**
-     * Ritorna true se angolo è dentro i limiti di sicurezza
-     */
     bool isAngleSafe(int angle) const;
-    
-    /**
-     * Ritorna info servo come stringa
-     */
     String getDebugInfo() const;
     
     // ========================================
     // SETTERS
     // ========================================
     
-    /**
-     * Imposta nuovi limiti di sicurezza
-     * 
-     * @param min Angolo minimo di sicurezza
-     * @param max Angolo massimo di sicurezza
-     */
     void setSafetyLimits(int min, int max);
-    
-    /**
-     * Abilita/disabilita controllo di sicurezza
-     */
     void setSafetyEnabled(bool enabled);
-    
-    /**
-     * Imposta trim offset in PWM
-     */
     void setTrim(int trim);
 
 protected:
     // ========================================
-    // VARIABILI PROTETTE
+    // VARIABILI PROTETTE (NO DUPLICATI!)
     // ========================================
     
-    int channel;                // Canale PCA9685
-    int currentAngle;           // Posizione attuale (gradi)
+    // Hardware
+    int channel;
     
-    // Range fisico servo
-    int minAngle;               // Min angolo fisico
-    int maxAngle;               // Max angolo fisico
-    uint16_t minPulse;          // PWM per minAngle
-    uint16_t maxPulse;          // PWM per maxAngle
+    // Range fisico
+    int minAngle;
+    int maxAngle;
+    uint16_t minPulse;
+    uint16_t maxPulse;
     
     // Range sicurezza
-    int safeMinAngle;           // Min angolo SICURO
-    int safeMaxAngle;           // Max angolo SICURO
-    bool safetyEnabled;         // Abilita controlli sicurezza
+    int safeMinAngle;
+    int safeMaxAngle;
+    bool safetyEnabled;
     
-    // Calibrazione
-    int trim;                   // Offset PWM di calibrazione
+    // Stato attuale
+    int currentAngle;
+    int trim;
     
-    // Stato
-    bool moving;                // True se in movimento
-    unsigned long moveStartTime;
-    unsigned long moveDuration;
-    float moveStartAngle;
-    float moveTargetAngle;
-
-
+    // Movimento smooth NON-BLOCCANTE
+    bool moving;
     float moveStartAngle;
     float moveTargetAngle;
     unsigned long moveStartTime;
     uint16_t moveDuration;
-    uint16_t moveSteps;
-
     
     // ========================================
     // UTILITY PROTETTE
     // ========================================
     
-    /**
-     * Converte angolo a PWM
-     */
     uint16_t angleToPulse(float angle);
-    
-    /**
-     * Applica limiti di sicurezza
-     */
     float applySafetyLimits(float angle);
-    
-    /**
-     * Stampa debug info
-     */
-    void printDebug(const char* msg, float angle, uint16_t pulse);
 };
 
 #endif

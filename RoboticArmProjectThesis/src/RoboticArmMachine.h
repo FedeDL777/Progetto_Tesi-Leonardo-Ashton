@@ -16,15 +16,17 @@
 #include "include/Led.h"
 #include "include/Button.h"
 #include <Adafruit_PWMServoDriver.h>
+#include <queue>
+
 
 #define MAX_RANGE 180
 #define MIN_RANGE 0
 #define SAFE_RANGE_DEFAULT 90
 #define SAFE_MIN_RANGE_ELBOW 23
 #define MAX_RANGE_ELBOW 137
-#define SAFE_MIN_RANGE_CLAW 50
-#define SAFE_MAX_RANGE_CLAW 130
-
+#define SAFE_MIN_RANGE_CLAW 70
+#define SAFE_MAX_RANGE_CLAW 110
+#define DEFAULT_ANGLE_MOVE 10
 
 enum RobotStateEnum
 {
@@ -53,6 +55,24 @@ public:
     String getStateString() const;
     void transitionTo(int newState);
 
+
+    // COMMAND QUEUE
+
+    bool pushCommand(const String& cmdString);  // Parse automatico
+    
+    String popCommand();
+    
+    bool hasCommands() const;
+    
+    int getCommandCount() const;
+    
+    void clearCommands();
+    /**
+     * Esegue comando movimento
+     * Ritorna true se successo, false se errore
+     */
+    bool executeCommand(const String& cmd);
+
     // TRANSIZIONI PUBBLICHE
 
     void tryConnectToNetwork();
@@ -80,12 +100,6 @@ public:
     int getClawAngle() const;
 
     /**
-     * Verifica stato LED
-     */
-    bool isLedGreenOn() const;
-    bool isLedRedOn() const;
-
-    /**
      * Verifica stato pulsanti
      */
     bool isButtonWhitePressed();
@@ -103,10 +117,6 @@ public:
     /**
      * Imposta limiti di sicurezza per servo
      */
-    void setBaseServoLimits(int min, int max);
-    void setElbowServoLimits(int min, int max);
-    void setWristServoLimits(int min, int max);
-    void setClawServoLimits(int min, int max);
     bool areAllAngleSafe();
     /**
      * Abilita/disabilita controlli di sicurezza
@@ -148,6 +158,11 @@ private:
     unsigned long stateEntryTime;
     unsigned long lastNetworkCheck;
     unsigned long lastServoCheck;
+
+    // Command queue
+    std::queue<String> commandQueue;
+    int numCommands;
+    const int MAX_QUEUE_SIZE = 50;
 
     // Timeout configuration
     const unsigned long CONNECTION_TIMEOUT = 5000;

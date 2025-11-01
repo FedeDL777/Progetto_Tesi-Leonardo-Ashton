@@ -1,5 +1,3 @@
-
-
 #include "include/ServoBase.h"
 
 // ============================================================================
@@ -19,33 +17,29 @@ ServoMotor::ServoMotor(
     this->minPulse = minPulse;
     this->maxPulse = maxPulse;
     this->minAngle = minAngle;
-    this->maxAngle = maxAngle;    // Se non specificati, limiti di sicurezza = limiti fisici
+    this->maxAngle = maxAngle;
+    
+    // Limiti di sicurezza (default = limiti fisici)
     this->safeMinAngle = (safeMin >= 0) ? safeMin : minAngle;
     this->safeMaxAngle = (safeMax >= 0) ? safeMax : maxAngle;
-    this->moveStartAngle = safeMinAngle + (safeMaxAngle - safeMinAngle) / 2;
     
-    this->currentAngle = (minAngle + maxAngle) / 2;  // Inizia al centro
+    // Inizializza al centro del range sicuro
+    this->currentAngle = (safeMinAngle + safeMaxAngle) / 2;
     this->trim = 0;
     this->safetyEnabled = true;
     this->moving = false;
     
     Serial.printf(
-        "✅ ServoMotor initialized\n"
-        "   Channel: %d\n"
-        "   Range: %d° - %d°\n"
-        "   Safety: %d° - %d°\n"
-        "   PWM: %d - %d\n\n",
-        channel, minAngle, maxAngle,
-        safeMinAngle, safeMaxAngle,
-        minPulse, maxPulse
+        "✅ ServoMotor Ch%d | Range: %d°-%d° | Safe: %d°-%d° | PWM: %d-%d\n",
+        channel, minAngle, maxAngle, safeMinAngle, safeMaxAngle, minPulse, maxPulse
     );
 }
 
 // ============================================================================
-// MOVIMENTO SERVO
+// MOVIMENTO IMMEDIATO
 // ============================================================================
 
-void ServoMotor::moveServo(Adafruit_PWMServoDriver pwm, float angle) {
+void ServoMotor::moveServo(Adafruit_PWMServoDriver& pwm, float angle) {
     // Applica limiti di sicurezza
     angle = applySafetyLimits(angle);
     
@@ -58,41 +52,23 @@ void ServoMotor::moveServo(Adafruit_PWMServoDriver pwm, float angle) {
     // Aggiorna stato
     currentAngle = (int)angle;
     moving = false;
-    
-    // Debug
-    printDebug("moveServo", angle, pulse);
 }
-/*
-void ServoMotor::moveServoSmooth(
-    Adafruit_PWMServoDriver pwm,
-    float angle,
-    uint16_t duration,
-    uint16_t steps
-) {
-    angle = applySafetyLimits(angle);
-    
-    float angleDiff = angle - currentAngle;
-    float delay_per_step = (float)duration / steps;
 
-    moving = true;
-    moveStartAngle = currentAngle;
-    moveTargetAngle = angle;
-    moveStartTime = millis();
-    moveDuration = duration;
-    
-    for (int i = 0; i <= steps; i++) {
-        float currentPos = currentAngle + (angleDiff * i / steps);
-        uint16_t pulse = angleToPulse(currentPos);
-        
-        pwm.setPWM(channel, 0, pulse);
-        delay(delay_per_step);
-    }
-    
-    currentAngle = (int)angle;
-    moving = false;
+void ServoMotor::moveRelative(Adafruit_PWMServoDriver& pwm, int delta) {
+    float newAngle = currentAngle + delta;
+    moveServo(pwm, newAngle);
 }
-*/
-void ServoMotor::startSmoothMove(Adafruit_PWMServoDriver pwm, float targetAngle, uint16_t duration, uint16_t steps) {
+
+// ============================================================================
+// MOVIMENTO SMOOTH NON-BLOCCANTE
+// ============================================================================
+
+void ServoMotor::startSmoothMove(
+    Adafruit_PWMServoDriver& pwm, 
+    float targetAngle, 
+    uint16_t duration, 
+    uint16_t steps  // Ignorato
+) {
     targetAngle = applySafetyLimits(targetAngle);
     
     // Se già in movimento, completa quello attuale
@@ -106,11 +82,14 @@ void ServoMotor::startSmoothMove(Adafruit_PWMServoDriver pwm, float targetAngle,
     moveTargetAngle = targetAngle;
     moveStartTime = millis();
     moveDuration = duration;
-    moveSteps = steps;
     
+    Serial.printf(
+        "🎯 Ch%d: %.0f° → %.0f° in %dms\n",
+        channel, moveStartAngle, moveTargetAngle, duration
+    );
 }
 
-bool ServoMotor::updateSmoothMove(Adafruit_PWMServoDriver pwm) {
+bool ServoMotor::updateSmoothMove(Adafruit_PWMServoDriver& pwm) {
     if (!moving) {
         return true;  // Nessun movimento attivo
     }
@@ -119,16 +98,18 @@ bool ServoMotor::updateSmoothMove(Adafruit_PWMServoDriver pwm) {
     
     // Movimento completato
     if (elapsed >= moveDuration) {
-        // Vai alla posizione finale esatta
+        // Posizione finale esatta
         uint16_t pulse = angleToPulse(moveTargetAngle);
         pwm.setPWM(channel, 0, pulse);
+        
         currentAngle = (int)moveTargetAngle;
         moving = false;
         
+        Serial.printf("✅ Ch%d: Raggiunto %.0f°\n", channel, moveTargetAngle);
         return true;
     }
     
-    // Calcola posizione corrente con interpolazione lineare
+    // Calcola posizione corrente (interpolazione lineare)
     float progress = (float)elapsed / moveDuration;  // 0.0 → 1.0
     float angleDiff = moveTargetAngle - moveStartAngle;
     float currentPos = moveStartAngle + (angleDiff * progress);
@@ -137,46 +118,35 @@ bool ServoMotor::updateSmoothMove(Adafruit_PWMServoDriver pwm) {
     uint16_t pulse = angleToPulse(currentPos);
     pwm.setPWM(channel, 0, pulse);
     
-
     return false;  // Movimento in corso
 }
 
 void ServoMotor::stopMove() {
     if (moving) {
         moving = false;
+        Serial.printf("⏹️ Ch%d: Movimento interrotto\n", channel);
     }
-}
-
-
-void ServoMotor::moveRelative(Adafruit_PWMServoDriver pwm, int delta) {
-    float newAngle = currentAngle + delta;
-    moveServo(pwm, newAngle);
 }
 
 // ============================================================================
 // POSIZIONI PREDEFINITE
 // ============================================================================
 
-void ServoMotor::moveToMin(Adafruit_PWMServoDriver pwm) {
-    Serial.printf("Movimento a MIN (%d°)\n", safeMinAngle);
+void ServoMotor::moveToMin(Adafruit_PWMServoDriver& pwm) {
     moveServo(pwm, safeMinAngle);
 }
 
-void ServoMotor::moveToMax(Adafruit_PWMServoDriver pwm) {
-    Serial.printf("Movimento a MAX (%d°)\n", safeMaxAngle);
+void ServoMotor::moveToMax(Adafruit_PWMServoDriver& pwm) {
     moveServo(pwm, safeMaxAngle);
 }
 
-void ServoMotor::moveToCenter(Adafruit_PWMServoDriver pwm) {
+void ServoMotor::moveToCenter(Adafruit_PWMServoDriver& pwm) {
     int center = (safeMinAngle + safeMaxAngle) / 2;
-    Serial.printf("Movimento a CENTER (%d°)\n", center);
     moveServo(pwm, center);
 }
 
-void ServoMotor::moveToSafePosition(Adafruit_PWMServoDriver pwm, int angle) {
-    int safePos = angle;
-    Serial.printf("Movimento a SAFE POSITION (%d°)\n", safePos);
-    moveServo(pwm, safePos);
+void ServoMotor::moveToSafePosition(Adafruit_PWMServoDriver& pwm, int angle) {
+    moveServo(pwm, angle);
 }
 
 // ============================================================================
@@ -202,18 +172,16 @@ bool ServoMotor::isAngleSafe(int angle) const {
 
 String ServoMotor::getDebugInfo() const {
     String info = "\n╔════════════════════════════════════╗\n";
-    info += "║  SERVO MOTOR DEBUG INFO            ║\n";
-    info += "╚════════════════════════════════════╝\n\n";
-    
-    info += "Channel:     " + String(channel) + "\n";
-    info += "Current:     " + String(currentAngle) + "°\n";
-    info += "Range:       " + String(minAngle) + "° - " + String(maxAngle) + "°\n";
-    info += "Safety:      " + String(safeMinAngle) + "° - " + String(safeMaxAngle) + "°\n";
-    info += "Enabled:     " + String(safetyEnabled ? "YES" : "NO") + "\n";
-    info += "Moving:      " + String(moving ? "YES" : "NO") + "\n";
-    info += "PWM:         " + String(minPulse) + " - " + String(maxPulse) + "\n";
-    info += "Trim:        " + String(trim) + "\n\n";
-    
+    info += "║  SERVO DEBUG Ch" + String(channel) + "                  ║\n";
+    info += "╚════════════════════════════════════╝\n";
+    info += "Current:  " + String(currentAngle) + "°\n";
+    info += "Range:    " + String(minAngle) + "° - " + String(maxAngle) + "°\n";
+    info += "Safety:   " + String(safeMinAngle) + "° - " + String(safeMaxAngle) + "°\n";
+    info += "Moving:   " + String(moving ? "YES" : "NO") + "\n";
+    if (moving) {
+        info += "Target:   " + String((int)moveTargetAngle) + "°\n";
+        info += "Progress: " + String((int)((millis() - moveStartTime) * 100.0 / moveDuration)) + "%\n";
+    }
     return info;
 }
 
@@ -223,14 +191,11 @@ String ServoMotor::getDebugInfo() const {
 
 void ServoMotor::setSafetyLimits(int min, int max) {
     if (min < minAngle || max > maxAngle) {
-        Serial.printf("   SAFETY LIMITS OUT OF RANGE!\n");
-        Serial.printf("   Physical range: %d° - %d°\n", minAngle, maxAngle);
-        Serial.printf("   Requested: %d° - %d°\n", min, max);
+        Serial.printf("⚠️ Ch%d: Safety limits out of range!\n", channel);
         return;
     }
     
     if (min > max) {
-        Serial.printf("⚠️  Min > Max! Swapping...\n");
         int temp = min;
         min = max;
         max = temp;
@@ -239,20 +204,17 @@ void ServoMotor::setSafetyLimits(int min, int max) {
     safeMinAngle = min;
     safeMaxAngle = max;
     
-    Serial.printf(
-        "✅ Safety limits updated: %d° - %d°\n",
-        safeMinAngle, safeMaxAngle
-    );
+    Serial.printf("✅ Ch%d: Safety %d° - %d°\n", channel, min, max);
 }
 
 void ServoMotor::setSafetyEnabled(bool enabled) {
     safetyEnabled = enabled;
-    Serial.printf("Safety: %s\n", enabled ? "ENABLED " : "DISABLED");
+    Serial.printf("Ch%d: Safety %s\n", channel, enabled ? "ON" : "OFF");
 }
 
 void ServoMotor::setTrim(int trimValue) {
     trim = trimValue;
-    Serial.printf("Trim offset set to: %d\n", trim);
+    Serial.printf("Ch%d: Trim = %d\n", channel, trim);
 }
 
 // ============================================================================
@@ -260,10 +222,10 @@ void ServoMotor::setTrim(int trimValue) {
 // ============================================================================
 
 uint16_t ServoMotor::angleToPulse(float angle) {
-    // Limita angle al range fisico
+    // Limita al range fisico
     angle = constrain(angle, minAngle, maxAngle);
     
-    // Mappa angle a PWM
+    // Mappa angolo → PWM
     uint16_t pulse = map(
         angle * 10,
         minAngle * 10,
@@ -275,7 +237,7 @@ uint16_t ServoMotor::angleToPulse(float angle) {
     // Applica trim
     pulse += trim;
     
-    // Assicura limiti PWM
+    // Sicurezza finale
     pulse = constrain(pulse, minPulse, maxPulse);
     
     return pulse;
@@ -287,18 +249,10 @@ float ServoMotor::applySafetyLimits(float angle) {
     }
     
     if (angle < safeMinAngle) {
-        Serial.printf(
-            "Angle %.0f° below safety limit %d°\n",
-            angle, safeMinAngle
-        );
         return safeMinAngle;
     }
     
     if (angle > safeMaxAngle) {
-        Serial.printf(
-            "Angle %.0f° above safety limit %d°\n",
-            angle, safeMaxAngle
-        );
         return safeMaxAngle;
     }
     

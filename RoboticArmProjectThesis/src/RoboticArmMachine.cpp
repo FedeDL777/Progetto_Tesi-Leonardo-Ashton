@@ -164,16 +164,6 @@ int RoboticArmMachine::getClawAngle() const
 {
     return clawServo->getCurrentAngle();
 }
-/*
-bool RoboticArmMachine::isLedGreenOn() const {
-    // Implementare leggendo stato GPIO
-    return true;
-}
-
-bool RoboticArmMachine::isLedRedOn() const {
-    // Implementare leggendo stato GPIO
-    return true;
-}*/
 
 bool RoboticArmMachine::isButtonWhitePressed()
 {
@@ -187,7 +177,106 @@ bool RoboticArmMachine::isButtonBluePressed()
     return buttonBlue->isPressed();
 }
 
+// QUEUE COMANDI
+
+bool RoboticArmMachine::pushCommand(const String& newCmd) {
+
+    
+    if (newCmd.length() == 0) {
+        Serial.println("Comando non valido: " + newCmd);
+        return false;
+    }
+
+    commandQueue.push(newCmd);
+    numCommands++;
+
+    return true;
+}
+
+String RoboticArmMachine::popCommand() {
+    if (commandQueue.empty()) {
+        return "";  // Comando vuoto
+    }
+
+    String cmd = commandQueue.front();
+    commandQueue.pop();
+    numCommands--;
+
+    Serial.printf("Comando estratto: %s (coda: %d)\n",
+        cmd.c_str(), numCommands);
+    
+    return cmd;
+}
+
+bool RoboticArmMachine::hasCommands() const {
+    return !commandQueue.empty();
+}
+
+int RoboticArmMachine::getCommandCount() const {
+    return numCommands;
+}
+
+void RoboticArmMachine::clearCommands() {
+    while (!commandQueue.empty()) {
+        commandQueue.pop();
+    }
+    numCommands = 0;
+    Serial.println("Coda comandi svuotata");
+}
+
 // ============================================================================
+// COMMAND EXECUTION
+// ============================================================================
+
+bool RoboticArmMachine::executeCommand(const String& cmd) {
+    int angle = DEFAULT_ANGLE_MOVE;
+
+    if (cmd == "Base SX") {
+        int currentAngle = baseServo->getCurrentAngle();
+        moveBaseServo(currentAngle - angle);
+        return true;
+    }
+    else if (cmd == "Base DX") {
+        int currentAngle = baseServo->getCurrentAngle();
+        moveBaseServo(currentAngle + angle);
+        return true;
+    }
+    else if (cmd == "Elbow SX") {
+        int currentAngle = elbowServo->getCurrentAngle();
+        moveElbowServo(currentAngle - angle);
+        return true;
+    }
+    else if (cmd == "Elbow DX") {
+        int currentAngle = elbowServo->getCurrentAngle();
+        moveElbowServo(currentAngle + angle);
+        return true;
+    }
+    else if (cmd == "Wrist SX") {
+        int currentAngle = wristServo->getCurrentAngle();
+        moveWristServo(currentAngle - angle);
+        return true;
+    }
+    else if (cmd == "Wrist DX") {
+        int currentAngle = wristServo->getCurrentAngle();
+        moveWristServo(currentAngle + angle);
+        return true;
+    }
+    else if (cmd == "Claw Open") {
+        int currentAngle = clawServo->getCurrentAngle();
+        moveClawServo(currentAngle + angle);
+        return true;
+    }
+    else if (cmd == "Claw Close") {
+        int currentAngle = clawServo->getCurrentAngle();
+        moveClawServo(currentAngle - angle);
+        return true;
+    }
+
+    Serial.println("❌ Comando non riconosciuto");
+    return false;
+}
+
+
 // TRANSIZIONI PUBBLICHE
 // ============================================================================
 
@@ -269,22 +358,22 @@ void RoboticArmMachine::receiveCommand(String command)
 
 void RoboticArmMachine::moveBaseServo(int angle)
 {
-    baseServo->moveServo(pwm, angle);
+    baseServo->startSmoothMove(pwm, angle, 500);
 }
 
 void RoboticArmMachine::moveElbowServo(int angle)
 {
-    elbowServo->moveServo(pwm, angle);
+    elbowServo->startSmoothMove(pwm, angle, 500);
 }
 
 void RoboticArmMachine::moveWristServo(int angle)
 {
-    wristServo->moveServo(pwm, angle);
+    wristServo->startSmoothMove(pwm, angle, 500);
 }
 
 void RoboticArmMachine::moveClawServo(int angle)
 {
-    clawServo->moveServo(pwm, angle);
+    clawServo->startSmoothMove(pwm, angle, 500);
 }
 
 void RoboticArmMachine::moveAllToSafePosition()
@@ -303,30 +392,6 @@ void RoboticArmMachine::moveAllToCenter()
     elbowServo->moveToCenter(pwm);
     wristServo->moveToCenter(pwm);
     clawServo->moveToCenter(pwm);
-}
-
-// ============================================================================
-// SETTERS - SICUREZZA
-// ============================================================================
-
-void RoboticArmMachine::setBaseServoLimits(int min, int max)
-{
-    baseServo->setSafetyLimits(min, max);
-}
-
-void RoboticArmMachine::setElbowServoLimits(int min, int max)
-{
-    elbowServo->setSafetyLimits(min, max);
-}
-
-void RoboticArmMachine::setWristServoLimits(int min, int max)
-{
-    wristServo->setSafetyLimits(min, max);
-}
-
-void RoboticArmMachine::setClawServoLimits(int min, int max)
-{
-    clawServo->setSafetyLimits(min, max);
 }
 
 bool RoboticArmMachine::areAllAngleSafe()

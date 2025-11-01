@@ -37,10 +37,7 @@ public:
         int safeMin = -1,
         int safeMax = -1);
 
-    /**
-     * Override per aggiungere metodi specifici servo 270°
-     */
-    void moveOneFullRotation(Adafruit_PWMServoDriver pwm, uint16_t duration = 2000);
+
 };
 
 #endif

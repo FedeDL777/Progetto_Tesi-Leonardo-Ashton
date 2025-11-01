@@ -23,12 +23,3 @@ ServoMotor20Diy::ServoMotor20Diy(
     Serial.println("✅ ServoMotor20Diy (270°) initialized");
 }
 
-void ServoMotor20Diy::moveOneFullRotation(
-    Adafruit_PWMServoDriver pwm,
-    uint16_t duration
-) {
-    Serial.printf("🔄 Full rotation (270°) in %dms\n", duration);
-    moveServoSmooth(pwm, 270, duration, 100);
-    delay(500);
-    moveServoSmooth(pwm, 0, duration, 100);
-}

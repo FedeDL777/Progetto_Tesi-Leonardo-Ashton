@@ -1,24 +1,27 @@
 #ifndef __TASK__
 #define __TASK__
 
-
-class Task {
+class Task
+{
 
 public:
-  Task(){
+  Task()
+  {
     active = false;
   }
 
   /* periodic */
-  virtual void init(int period){
+  virtual void init(int period)
+  {
     myPeriod = period;
-    periodic = true;  
+    periodic = true;
     active = true;
     timeElapsed = 0;
   }
 
   /* aperiodic */
-  virtual void init(){
+  virtual void init()
+  {
     timeElapsed = 0;
     periodic = false;
     active = true;
@@ -27,46 +30,53 @@ public:
 
   virtual void tick() = 0;
 
-  bool updateAndCheckTime(int basePeriod){
+  bool updateAndCheckTime(int basePeriod)
+  {
     timeElapsed += basePeriod;
-    if (timeElapsed >= myPeriod){
+    if (timeElapsed >= myPeriod)
+    {
       timeElapsed = 0;
       return true;
-    } else {
-      return false; 
+    }
+    else
+    {
+      return false;
     }
   }
 
-  void setCompleted(){
+  void setCompleted()
+  {
     completed = true;
     active = false;
   }
 
-  bool isCompleted(){
+  bool isCompleted()
+  {
     return completed;
   }
 
-  bool isPeriodic(){
+  bool isPeriodic()
+  {
     return periodic;
   }
 
-  bool isActive(){
+  bool isActive()
+  {
     return active;
   }
 
-  virtual void setActive(bool active){
+  virtual void setActive(bool active)
+  {
     timeElapsed = 0;
     this->active = active;
   }
-  
-private:
 
+private:
   int myPeriod;
   int timeElapsed;
   bool active;
   bool periodic;
   bool completed;
-
 };
 
 #endif

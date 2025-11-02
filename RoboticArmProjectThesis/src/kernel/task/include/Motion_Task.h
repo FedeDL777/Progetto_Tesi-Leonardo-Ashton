@@ -1,43 +1,27 @@
-#ifndef __MOTION_CONTROL_TASK__
-#define __MOTION_CONTROL_TASK__
 
-#include "kernel/Task.h"
+#ifndef __MOTION_TASK_H__
+#define __MOTION_TASK_H__
+
+#include "../include/Task.h"
 #include "RoboticArmMachine.h"
 
-struct MotionCommand {
-    bool active;
-    int servoIndex;  // 0=base, 1=elbow, 2=wrist, 3=claw
-    int targetAngle;
-    unsigned long duration;  // ms
-    unsigned long startTime;
-};
-
-class MotionControlTask : public Task {
+class MotionTask : public Task {
 public:
-    MotionControlTask(RoboticArmMachine* machine);
+    MotionTask(RoboticArmMachine* machine);
+    
     void tick() override;
     
-    // Metodi pubblici per accodare movimenti
-    void queueMotion(int servoIndex, int targetAngle, int duration = 1000);
-    void stopAllMotion();
-    
-    bool isMotionComplete() const;
-    
+    int getCommandsProcessed() const { return commandsProcessed; }
+    int getCommandsFailed() const { return commandsFailed; }
+
 private:
     RoboticArmMachine* machine;
     
-    MotionCommand currentCommand;
+    int commandsProcessed;
+    int commandsFailed;
     
-    // Queue di comandi (semplice, per ora)
-    static const int MAX_QUEUE_SIZE = 10;
-    MotionCommand commandQueue[MAX_QUEUE_SIZE];
-    int queueHead;
-    int queueTail;
-    
-    // Metodi privati
-    void executeCurrentMotion();
-    void dequeueNextCommand();
-    int interpolateAngle(int start, int target, float progress);
+    unsigned long lastCommandTime;
+    const unsigned long COMMAND_INTERVAL = 100;  // Min 100ms tra comandi
 };
 
 #endif

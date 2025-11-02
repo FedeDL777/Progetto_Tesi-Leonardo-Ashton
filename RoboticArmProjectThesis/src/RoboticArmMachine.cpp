@@ -322,7 +322,7 @@ void RoboticArmMachine::stopWorking()
 {
     if (currentState == STATE_WORKING)
     {
-        Serial.println("⏹️  Stopping operations");
+        Serial.println("Stopping operations");
         transitionTo(STATE_IDLE);
     }
 }
@@ -553,7 +553,7 @@ void RoboticArmMachine::handleNetworkLost()
 
 void RoboticArmMachine::exitNetworkLost()
 {
-    Serial.println("✅ Exit NETWORK_LOST\n");
+    Serial.println("Exit NETWORK_LOST\n");
 }
 
 // ============================================================================
@@ -564,7 +564,7 @@ void RoboticArmMachine::enterIdle()
 {
     setLedState(true, false); // Solo LED verde
     stateEntryTime = millis();
-    Serial.println("💤 System in standby\n");
+    Serial.println("System in standby\n");
 }
 
 void RoboticArmMachine::handleIdle()
@@ -655,69 +655,6 @@ void RoboticArmMachine::setLedState(bool green, bool red)
         ledRed->switchOff();
 }
 
-void RoboticArmMachine::logStateChange(int oldState, int newState)
-{
-    String oldStr = (oldState == STATE_START) ? "START" : (oldState == STATE_CONNECTED)   ? "CONNECTED"
-                                                      : (oldState == STATE_WORKING)       ? "WORKING"
-                                                      : (oldState == STATE_PROBLEM_SERVO) ? "PROBLEM_SERVO"
-                                                      : (oldState == STATE_NETWORK_LOST)  ? "NETWORK_LOST"
-                                                                                          : "IDLE";
-
-    String newStr = (newState == STATE_START) ? "START" : (newState == STATE_CONNECTED)   ? "CONNECTED"
-                                                      : (newState == STATE_WORKING)       ? "WORKING"
-                                                      : (newState == STATE_PROBLEM_SERVO) ? "PROBLEM_SERVO"
-                                                      : (newState == STATE_NETWORK_LOST)  ? "NETWORK_LOST"
-                                                                                          : "IDLE";
-
-    Serial.printf("📊 STATE: %s → %s\n\n", oldStr.c_str(), newStr.c_str());
-}
-
-void RoboticArmMachine::checkNetwork()
-{
-    // TODO: Implementare verifica connessione reale
-    networkConnected = true;
-}
-
-void RoboticArmMachine::checkServoHealth()
-{
-    // TODO: Implementare controllo salute servo
-    // - Leggere feedback
-    // - Verificare corrente
-}
-
-void RoboticArmMachine::processCommand(String command)
-{
-    Serial.printf("📨 Processing command: %s\n\n", command.c_str());
-
-    if (command.startsWith("BASE:"))
-    {
-        int angle = command.substring(5).toInt();
-        moveBaseServo(angle);
-    }
-    else if (command.startsWith("ELBOW:"))
-    {
-        int angle = command.substring(6).toInt();
-        moveElbowServo(angle);
-    }
-    else if (command.startsWith("WRIST:"))
-    {
-        int angle = command.substring(6).toInt();
-        moveWristServo(angle);
-    }
-    else if (command.startsWith("CLAW:"))
-    {
-        int angle = command.substring(5).toInt();
-        moveClawServo(angle);
-    }
-    else if (command == "SAFE")
-    {
-        moveAllToSafePosition();
-    }
-    else if (command == "CENTER")
-    {
-        moveAllToCenter();
-    }
-}
 
 void RoboticArmMachine::bringToSafePosition()
 {

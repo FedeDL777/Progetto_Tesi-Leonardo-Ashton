@@ -1,22 +1,27 @@
+
 #ifndef __BUTTON__
 #define __BUTTON__
+
+#include "Arduino.h"
 
 class Button
 {
 public:
-    Button(int pin);
-
-    void sync();
-    long getLastSyncTime();
+    Button(int pin, bool usePullup = false, unsigned long debounceTime = 50);
+    void update();
     bool isPressed();
 
-protected:
-    void updateSyncTime(long time);
-
+    bool wasPressed();
+    bool readRaw();
 private:
-    long lastTimeSync;
     int pin;
-    bool pressed;
+    bool usePullup;
+    bool lastReading;
+    bool lastStableState;
+    bool pressedEvent = false;
+    unsigned long lastDebounceTime;
+    unsigned long debounceTime;
+
 };
 
 #endif

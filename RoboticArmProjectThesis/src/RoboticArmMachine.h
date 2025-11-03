@@ -22,9 +22,10 @@
 #define MAX_RANGE 180
 #define MIN_RANGE 0
 #define SAFE_RANGE_DEFAULT 90
+#define SAFE_RANGE_ELBOW 110
 #define SAFE_MIN_RANGE_ELBOW 23
 #define MAX_RANGE_ELBOW 137
-#define SAFE_MIN_RANGE_CLAW 70
+#define SAFE_MIN_RANGE_CLAW 45
 #define SAFE_MAX_RANGE_CLAW 110
 #define DEFAULT_ANGLE_MOVE 10
 
@@ -90,6 +91,10 @@ public:
     void moveWristServo(int angle);
     void moveClawServo(int angle);
 
+    void updateServoMovements();
+    
+    bool isAnyServoMoving() const;
+
     void moveAllToSafePosition();
 
     void moveAllToCenter();
@@ -102,8 +107,8 @@ public:
     /**
      * Verifica stato pulsanti
      */
-    bool isButtonWhitePressed();
-    bool isButtonBluePressed();
+    bool wasButtonWhitePressed();
+    bool wasButtonBluePressed();
 
     /**
      * Ottiene info debug
@@ -162,7 +167,7 @@ private:
     // Command queue
     std::queue<String> commandQueue;
     int numCommands;
-    const int MAX_QUEUE_SIZE = 50;
+    const int MAX_QUEUE_SIZE = 10;
 
     // Timeout configuration
     const unsigned long CONNECTION_TIMEOUT = 5000;
@@ -203,10 +208,10 @@ private:
     // ========================================
 
     void setLedState(bool green, bool red);
-    void logStateChange(int oldState, int newState);
-    void checkNetwork();
-    void checkServoHealth();
-    void processCommand(String command);
+   // void logStateChange(int oldState, int newState);
+   // void checkNetwork();
+   // void checkServoHealth();
+   // void processCommand(String command);
     void bringToSafePosition();
 };
 

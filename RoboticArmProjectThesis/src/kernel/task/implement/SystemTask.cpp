@@ -16,43 +16,22 @@ SystemTask::SystemTask(RoboticArmMachine* machine)
 // ============================================================================
 
 void SystemTask::tick() {
-    // ========================================
-    // 1. Aggiorna FSM
-    // ========================================
+          machine->update();
     
-    machine->update();
-    
-
-    unsigned long now = millis();
-    // ========================================
-    // 3. Polling Pulsanti
-    // ========================================
-    
-    if (now - lastButtonCheck > 100) {
-        bool whitePressed = machine->isButtonWhitePressed();
-        bool bluePressed = machine->isButtonBluePressed();
-        
-        // Edge detection pulsante bianco
-        if (whitePressed && !lastWhiteState) {
-            machine->moveAllToSafePosition();
-            machine->clearCommands();
-        }
-        
-        // Edge detection pulsante blu
-        if (bluePressed && !lastBlueState) {
-            if (machine->getCurrentState() == STATE_WORKING) {
-                machine->stopWorking();
-                machine->clearCommands();
-            }
-        }
-        
-        lastWhiteState = whitePressed;
-        lastBlueState = bluePressed;
-        lastButtonCheck = now;
+    // ✅ Edge detection gestito dalla classe Button!
+    if (machine->wasButtonWhitePressed()) {
+        Serial.println("Pulsante BIANCO");
+        machine->moveAllToSafePosition();
+        machine->clearCommands();
     }
     
-    // ========================================
-    // 4. Log periodico
-    // ========================================
+    if (machine->wasButtonBluePressed()) {
+        Serial.println("Pulsante BLU");
+        if (machine->getCurrentState() == STATE_WORKING) {
+            machine->stopWorking();
+            machine->clearCommands();
+        }
+    }
+    
     
 }

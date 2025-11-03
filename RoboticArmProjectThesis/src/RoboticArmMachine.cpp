@@ -40,11 +40,15 @@ RoboticArmMachine::RoboticArmMachine()
 
     this->ledGreen = new Led(LED_GREEN);
     this->ledRed = new Led(LED_RED);
-    this->buttonWhite = new Button(BUTTON_WHITE_PIN);
-    this->buttonBlue = new Button(BUTTON_BLUE_PIN);
+    this->buttonWhite = new Button(BUTTON_WHITE_PIN, true);  // INPUT_PULLUP
+    this->buttonBlue = new Button(BUTTON_BLUE_PIN, true);    // INPUT_PULLUP
 
     Serial.println("LED and Button initialized\n");
+    Serial.println("LED and Button initialized\n");
 
+    //Comunicazione setup
+
+    this->numCommands = 0;
     // ==========================================
     // Crea servo motori
     // ==========================================
@@ -113,6 +117,8 @@ void RoboticArmMachine::update()
         handleIdle();
         break;
     }
+    //Togli questa riga dopo il debug
+    this->getDebugInfo();
 }
 
 // ============================================================================
@@ -165,16 +171,16 @@ int RoboticArmMachine::getClawAngle() const
     return clawServo->getCurrentAngle();
 }
 
-bool RoboticArmMachine::isButtonWhitePressed()
+bool RoboticArmMachine::wasButtonWhitePressed()
 {
-    buttonWhite->sync();
-    return buttonWhite->isPressed();
+    buttonWhite->update();
+    return buttonWhite->wasPressed();  
 }
 
-bool RoboticArmMachine::isButtonBluePressed()
+bool RoboticArmMachine::wasButtonBluePressed()
 {
-    buttonBlue->sync();
-    return buttonBlue->isPressed();
+    buttonBlue->update();
+    return buttonBlue->wasPressed();
 }
 
 // QUEUE COMANDI
@@ -185,8 +191,10 @@ bool RoboticArmMachine::pushCommand(const String& newCmd) {
     if (newCmd.length() == 0) {
         Serial.println("Comando non valido: " + newCmd);
         return false;
+    }else if (numCommands >= MAX_QUEUE_SIZE) {
+        Serial.println("Coda comandi piena, impossibile aggiungere: " + newCmd);
+        return false;
     }
-
     commandQueue.push(newCmd);
     numCommands++;
 
@@ -358,31 +366,59 @@ void RoboticArmMachine::receiveCommand(String command)
 
 void RoboticArmMachine::moveBaseServo(int angle)
 {
-    baseServo->startSmoothMove(pwm, angle, 500);
+    baseServo->startSmoothMove(pwm, angle, 180, 0);
 }
 
 void RoboticArmMachine::moveElbowServo(int angle)
 {
-    elbowServo->startSmoothMove(pwm, angle, 500);
+    elbowServo->startSmoothMove(pwm, angle, 180, 0);
 }
 
 void RoboticArmMachine::moveWristServo(int angle)
 {
-    wristServo->startSmoothMove(pwm, angle, 500);
+    wristServo->startSmoothMove(pwm, angle, 180, 0);
 }
 
 void RoboticArmMachine::moveClawServo(int angle)
 {
-    clawServo->startSmoothMove(pwm, angle, 500);
+    clawServo->startSmoothMove(pwm, angle, 180, 0);
 }
+
+
+/**
+ * Aggiorna tutti i movimenti servo in corso
+ * Chiamato dal MotionTask ogni 20ms (50Hz)
+ */
+void RoboticArmMachine::updateServoMovements()
+{
+    // Aggiorna ogni servo
+    // updateSmoothMove() ritorna true quando completato
+    baseServo->updateSmoothMove(pwm);
+    elbowServo->updateSmoothMove(pwm);
+    wristServo->updateSmoothMove(pwm);
+    clawServo->updateSmoothMove(pwm);
+}
+
+/**
+ * Verifica se almeno un servo è in movimento
+ * @return true se qualche servo sta ancora muovendosi
+ */
+bool RoboticArmMachine::isAnyServoMoving() const
+{
+    return baseServo->isMoving() || 
+           elbowServo->isMoving() || 
+           wristServo->isMoving() || 
+           clawServo->isMoving();
+}
+
 
 void RoboticArmMachine::moveAllToSafePosition()
 {
     Serial.println("Moving all servos to SAFE position...");
     baseServo->moveToSafePosition(pwm, SAFE_RANGE_DEFAULT);
-    elbowServo->moveToSafePosition(pwm, SAFE_MIN_RANGE_ELBOW);
+    elbowServo->moveToSafePosition(pwm, SAFE_RANGE_ELBOW);
     wristServo->moveToSafePosition(pwm, SAFE_RANGE_DEFAULT);
-    clawServo->moveToSafePosition(pwm, SAFE_RANGE_DEFAULT);
+    clawServo->moveToSafePosition(pwm, SAFE_MIN_RANGE_CLAW);
 }
 
 void RoboticArmMachine::moveAllToCenter()
@@ -452,7 +488,7 @@ void RoboticArmMachine::handleConnected()
     // Monitoraggio rete
     if (millis() - lastNetworkCheck > NETWORK_CHECK_INTERVAL)
     {
-        checkNetwork();
+        //checkNetwork();
         lastNetworkCheck = millis();
     }
 }
@@ -471,12 +507,6 @@ void RoboticArmMachine::enterWorking()
     setLedState(true, true); // Entrambi LED accesi
     stateEntryTime = millis();
 
-    // Processa comando in sospeso
-    if (pendingCommand.length() > 0)
-    {
-        processCommand(pendingCommand);
-        pendingCommand = "";
-    }
 }
 
 void RoboticArmMachine::handleWorking()
@@ -484,7 +514,7 @@ void RoboticArmMachine::handleWorking()
     // Controlla salute servo
     if (millis() - lastServoCheck > SERVO_CHECK_INTERVAL)
     {
-        checkServoHealth();
+        //checkServoHealth();
         lastServoCheck = millis();
     }
 
@@ -572,7 +602,7 @@ void RoboticArmMachine::handleIdle()
     // Monitoraggio periodico
     if (millis() - lastNetworkCheck > NETWORK_CHECK_INTERVAL)
     {
-        checkNetwork();
+        //checkNetwork();
         lastNetworkCheck = millis();
     }
 }
@@ -591,7 +621,7 @@ void RoboticArmMachine::transitionTo(int newState)
     if (newState == currentState)
         return;
 
-    logStateChange(currentState, newState);
+    // logStateChange(currentState, newState);
     previousState = currentState;
     currentState = newState;
 

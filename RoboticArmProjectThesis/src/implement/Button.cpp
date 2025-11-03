@@ -1,35 +1,60 @@
-#include "../include/Button.h"	
+#include "include/Button.h"	
 #include "Arduino.h"
 
-
-
-
-Button::Button(int pin)
+Button::Button(int pin, bool usePullup, unsigned long debounceTime)
 {
-    this->pin=pin;
-    pinMode(pin, OUTPUT);
-    sync();
+    this->pin = pin;
+    this->debounceTime = debounceTime;
+    this->usePullup = usePullup;
+
+    if (usePullup)
+        pinMode(pin, INPUT_PULLUP);
+    else
+        pinMode(pin, INPUT);
+
+    lastStableState = readRaw();
+    lastReading = lastStableState;
+    lastDebounceTime = millis();
 }
 
-
-
-
-void Button::sync()
+void Button::update()
 {
-    digitalRead(pin) == HIGH ? pressed = true : pressed = false;
-    updateSyncTime(millis());
-}
-void Button::updateSyncTime(long time)
-{
-    lastTimeSync = time;
-}
+    bool currentReading = readRaw();
 
-long Button::getLastSyncTime()
-{
-    return lastTimeSync;
+    // Rileva cambio di stato
+    if (currentReading != lastReading) {
+        lastDebounceTime = millis();
+    }
+
+    // Dopo il tempo di debounce, aggiorna stato stabile
+    if ((millis() - lastDebounceTime) > debounceTime) {
+        if (currentReading != lastStableState) {
+            lastStableState = currentReading;
+            
+            // Se è una nuova pressione, segnala l'evento
+            if (isPressed()) {
+                pressedEvent = true;
+            }
+        }
+    }
+
+    lastReading = currentReading;
 }
 
 bool Button::isPressed()
 {
-    return pressed;
+    return usePullup ? !lastStableState : lastStableState;
+}
+
+bool Button::wasPressed()
+{
+    if (pressedEvent) {
+        pressedEvent = false;
+        return true;
+    }
+    return false;
+}
+
+bool Button::readRaw() { 
+    return digitalRead(this->pin); 
 }

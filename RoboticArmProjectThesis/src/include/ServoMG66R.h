@@ -21,11 +21,6 @@ class ServoMotorMG66R : public ServoMotor {
 public:
     /**
      * Costruttore con range personalizzabile
-     * 
-     * Esempio uso:
-     * - ServoMotorMG66R elbow(4);                    // Full range 0-180°
-     * - ServoMotorMG66R elbow(4, -1, -1, 60, 120);   // Safe range 60-120°
-     * 
      * @param channel  Canale PCA9685 (0-15)
      * @param safeMin  Limite minimo di sicurezza (default -1 = no limit)
      * @param safeMax  Limite massimo di sicurezza (default -1 = no limit)

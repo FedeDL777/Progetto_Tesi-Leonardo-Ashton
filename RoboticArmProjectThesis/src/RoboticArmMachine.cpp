@@ -1,13 +1,7 @@
-/*******************************************************************************
- * ROBOTIC ARM MACHINE - IMPLEMENTAZIONE
- ******************************************************************************/
 
 #include "RoboticArmMachine.h"
 #include "include/set_up.h"
 
-// ============================================================================
-// COSTRUTTORE
-// ============================================================================
 
 RoboticArmMachine::RoboticArmMachine()
 {
@@ -49,10 +43,8 @@ RoboticArmMachine::RoboticArmMachine()
     //Comunicazione setup
 
     this->numCommands = 0;
-    // ==========================================
+
     // Crea servo motori
-    // ==========================================
-    // Full range servo
     this->baseServo = new ServoMotor20Diy(BASE_SERVO, 0, MAX_RANGE);
     this->elbowServo = new ServoMotor20Diy(SERVO_ELBOW, 0, MAX_RANGE_ELBOW);
 
@@ -62,9 +54,6 @@ RoboticArmMachine::RoboticArmMachine()
 
     Serial.println("Servo motors initialized\n");
 
-    // ==========================================
-    // Inizializza state
-    // ==========================================
     this->currentState = STATE_START;
     this->previousState = STATE_START;
     this->networkConnected = false;
@@ -76,7 +65,7 @@ RoboticArmMachine::RoboticArmMachine()
     this->lastNetworkCheck = millis();
     this->lastServoCheck = millis();
 
-    Serial.println("✅ RoboticArmMachine initialized\n");
+    Serial.println("RoboticArmMachine initialized\n");
 }
 
 void RoboticArmMachine::begin()
@@ -120,10 +109,6 @@ void RoboticArmMachine::update()
     //Togli questa riga dopo il debug
     this->getDebugInfo();
 }
-
-// ============================================================================
-// GETTERS
-// ============================================================================
 
 int RoboticArmMachine::getCurrentState() const
 {
@@ -232,9 +217,6 @@ void RoboticArmMachine::clearCommands() {
     Serial.println("Coda comandi svuotata");
 }
 
-// ============================================================================
-// COMMAND EXECUTION
-// ============================================================================
 
 bool RoboticArmMachine::executeCommand(const String& cmd) {
     int angle = DEFAULT_ANGLE_MOVE;
@@ -286,7 +268,6 @@ bool RoboticArmMachine::executeCommand(const String& cmd) {
 
 
 // TRANSIZIONI PUBBLICHE
-// ============================================================================
 
 void RoboticArmMachine::tryConnectToNetwork()
 {
@@ -360,9 +341,8 @@ void RoboticArmMachine::receiveCommand(String command)
     }
 }
 
-// ============================================================================
+
 // MOVIMENTO SERVO
-// ============================================================================
 
 void RoboticArmMachine::moveBaseServo(int angle)
 {
@@ -446,9 +426,8 @@ void RoboticArmMachine::setSafetyEnabled(bool enabled)
     clawServo->setSafetyEnabled(enabled);
 }
 
-// ============================================================================
+
 // STATO: START
-// ============================================================================
 
 void RoboticArmMachine::enterStart()
 {
@@ -472,9 +451,9 @@ void RoboticArmMachine::exitStart()
     Serial.println("Exit START\n");
 }
 
-// ============================================================================
+
 // STATO: CONNECTED
-// ============================================================================
+
 
 void RoboticArmMachine::enterConnected()
 {
@@ -498,9 +477,9 @@ void RoboticArmMachine::exitConnected()
     Serial.println("Exit CONNECTED\n");
 }
 
-// ============================================================================
+
 // STATO: WORKING
-// ============================================================================
+
 
 void RoboticArmMachine::enterWorking()
 {
@@ -530,9 +509,9 @@ void RoboticArmMachine::exitWorking()
     Serial.println("Exit WORKING\n");
 }
 
-// ============================================================================
+
 // STATO: PROBLEM_SERVO
-// ============================================================================
+
 
 void RoboticArmMachine::enterProblemServo()
 {
@@ -558,9 +537,9 @@ void RoboticArmMachine::exitProblemServo()
     Serial.println("✅ Exit PROBLEM_SERVO\n");
 }
 
-// ============================================================================
+
 // STATO: NETWORK_LOST
-// ============================================================================
+
 
 void RoboticArmMachine::enterNetworkLost()
 {
@@ -575,7 +554,7 @@ void RoboticArmMachine::handleNetworkLost()
     // Tenta riconnessione
     if (millis() - lastNetworkCheck > 2000)
     {
-        Serial.println("🔄 Attempting reconnection...");
+        Serial.println("Attempting reconnection...");
         // TODO: Implementare logica riconnessione
         lastNetworkCheck = millis();
     }
@@ -586,9 +565,9 @@ void RoboticArmMachine::exitNetworkLost()
     Serial.println("Exit NETWORK_LOST\n");
 }
 
-// ============================================================================
+
 // STATO: IDLE
-// ============================================================================
+
 
 void RoboticArmMachine::enterIdle()
 {
@@ -609,12 +588,12 @@ void RoboticArmMachine::handleIdle()
 
 void RoboticArmMachine::exitIdle()
 {
-    Serial.println("✅ Exit IDLE\n");
+    Serial.println("Exit IDLE\n");
 }
 
-// ============================================================================
+
 // UTILITY PRIVATE
-// ============================================================================
+
 
 void RoboticArmMachine::transitionTo(int newState)
 {

@@ -20,6 +20,6 @@ ServoMotor20Diy::ServoMotor20Diy(
     (safeMin >= 0) ? safeMin : SERVO_270_MIN_ANGLE,
     (safeMax >= 0) ? safeMax : SERVO_270_MAX_ANGLE
 ) {
-    Serial.println("✅ ServoMotor20Diy (270°) initialized");
+    Serial.println("ServoMotor20Diy (270°) initialized");
 }
 

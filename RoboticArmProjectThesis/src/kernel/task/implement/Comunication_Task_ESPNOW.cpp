@@ -7,9 +7,7 @@
 // Instance statica
 CommunicationTask* CommunicationTask::instance = nullptr;
 
-// ============================================================================
 // COSTRUTTORE
-// ============================================================================
 
 CommunicationTask::CommunicationTask(
     RoboticArmMachine* machine, 
@@ -24,9 +22,7 @@ CommunicationTask::CommunicationTask(
     instance = this;
 }
 
-// ============================================================================
 // INIZIALIZZAZIONE ESP-NOW
-// ============================================================================
 
 bool CommunicationTask::begin() {
     Serial.println("\n Inizializzazione ESP-NOW...");
@@ -48,9 +44,7 @@ bool CommunicationTask::begin() {
     return true;
 }
 
-// ============================================================================
 // CALLBACK ESP-NOW
-// ============================================================================
 
 void CommunicationTask::onDataReceived(
     const uint8_t* mac, 
@@ -114,9 +108,7 @@ void CommunicationTask::handleMessage(
     }
 }
 
-// ============================================================================
 // TASK TICK
-// ============================================================================
 
 void CommunicationTask::tick() {
     unsigned long now = millis();

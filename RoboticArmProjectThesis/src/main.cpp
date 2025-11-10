@@ -6,9 +6,9 @@
 #include "kernel/task/include/Motion_Task.h"
 #include "kernel/task/include/SystemTask.h"
 
-// ============================================================================
+
 // OGGETTI GLOBALI
-// ============================================================================
+
 
 RoboticArmMachine* machine;
 Scheduler scheduler;
@@ -17,17 +17,17 @@ CommunicationTask* commTask;
 MotionTask* motionTask;
 SystemTask* systemTask;
 
-// ============================================================================
+
 // SETUP
-// ============================================================================
+
 
 void setup() {
     Serial.begin(115200);
     delay(1000);
 
-    // ========================================
+
     // Inizializza RoboticArmMachine
-    // ========================================
+
     
     Serial.println("Inizializzazione RoboticArmMachine...\n");
     
@@ -36,9 +36,9 @@ void setup() {
     
     Serial.println("RoboticArmMachine pronta!\n");
     
-    // ========================================
+
     // Inizializza Scheduler
-    // ========================================
+
     
     Serial.println("Inizializzazione Scheduler...\n");
     
@@ -46,9 +46,9 @@ void setup() {
 
     Serial.println("Scheduler inizializzato (20ms base period)\n");
 
-    // ========================================
+
     // Crea e Aggiungi Task
-    // ========================================
+
     
     // Communication Task (ESP-NOW) - ogni 100ms
     commTask = new CommunicationTask(machine, 5000);
@@ -75,14 +75,14 @@ void setup() {
     
 }
 
-// ============================================================================
+
 // LOOP - USA SCHEDULER ESISTENTE
-// ============================================================================
+
 
 void loop() {
-    // ========================================
+
     // Scheduler gestisce automaticamente timing
-    // ========================================
+
     
     scheduler.schedule();
     

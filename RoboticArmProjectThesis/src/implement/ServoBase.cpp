@@ -30,7 +30,7 @@ ServoMotor::ServoMotor(
     this->moving = false;
     
     Serial.printf(
-        "✅ ServoMotor Ch%d | Range: %d°-%d° | Safe: %d°-%d° | PWM: %d-%d\n",
+        "ServoMotor Ch%d | Range: %d°-%d° | Safe: %d°-%d° | PWM: %d-%d\n",
         channel, minAngle, maxAngle, safeMinAngle, safeMaxAngle, minPulse, maxPulse
     );
 }
@@ -84,7 +84,7 @@ void ServoMotor::startSmoothMove(
     moveDuration = duration;
     
     Serial.printf(
-        "🎯 Ch%d: %.0f° → %.0f° in %dms\n",
+        "Ch%d: %.0f° → %.0f° in %dms\n",
         channel, moveStartAngle, moveTargetAngle, duration
     );
 }
@@ -105,7 +105,7 @@ bool ServoMotor::updateSmoothMove(Adafruit_PWMServoDriver& pwm) {
         currentAngle = (int)moveTargetAngle;
         moving = false;
         
-        Serial.printf("✅ Ch%d: Raggiunto %.0f°\n", channel, moveTargetAngle);
+        Serial.printf("Ch%d: Raggiunto %.0f°\n", channel, moveTargetAngle);
         return true;
     }
     
@@ -124,7 +124,7 @@ bool ServoMotor::updateSmoothMove(Adafruit_PWMServoDriver& pwm) {
 void ServoMotor::stopMove() {
     if (moving) {
         moving = false;
-        Serial.printf("⏹️ Ch%d: Movimento interrotto\n", channel);
+        Serial.printf("Ch%d: Movimento interrotto\n", channel);
     }
 }
 
@@ -191,7 +191,7 @@ String ServoMotor::getDebugInfo() const {
 
 void ServoMotor::setSafetyLimits(int min, int max) {
     if (min < minAngle || max > maxAngle) {
-        Serial.printf("⚠️ Ch%d: Safety limits out of range!\n", channel);
+        Serial.printf("Ch%d: Safety limits out of range!\n", channel);
         return;
     }
     
@@ -204,7 +204,7 @@ void ServoMotor::setSafetyLimits(int min, int max) {
     safeMinAngle = min;
     safeMaxAngle = max;
     
-    Serial.printf("✅ Ch%d: Safety %d° - %d°\n", channel, min, max);
+    Serial.printf("Ch%d: Safety %d° - %d°\n", channel, min, max);
 }
 
 void ServoMotor::setSafetyEnabled(bool enabled) {

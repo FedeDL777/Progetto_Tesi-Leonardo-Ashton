@@ -1,9 +1,9 @@
 
 #include "..\include\Motion_Task.h"
 
-// ============================================================================
+
 // COSTRUTTORE
-// ============================================================================
+
 
 MotionTask::MotionTask(RoboticArmMachine* machine)
     : machine(machine),
@@ -13,20 +13,20 @@ MotionTask::MotionTask(RoboticArmMachine* machine)
 {
 }
 
-// ============================================================================
+
 // TASK TICK
-// ============================================================================
+
 
 void MotionTask::tick() {
-    // ========================================
+
     // 1. Aggiorna SEMPRE movimenti servo
-    // ========================================
+
     
     machine->updateServoMovements();
     
-    // ========================================
+
     // 2. Processa comandi dalla coda
-    // ========================================
+
     
     unsigned long now = millis();
     
@@ -45,9 +45,9 @@ void MotionTask::tick() {
         return;
     }
     
-    // ========================================
+
     // 3. Estrai e esegui comando
-    // ========================================
+
     
     String cmd = machine->popCommand();
     

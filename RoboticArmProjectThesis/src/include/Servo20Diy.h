@@ -22,12 +22,6 @@ class ServoMotor20Diy : public ServoMotor
 public:
     /**
      * Costruttore con range personalizzabile
-     *
-     * Esempio uso:
-     * - ServoMotor20Diy base(0);                     // Full range 0-270°
-     * - ServoMotor20Diy base(0, -1, -1, 45, 225);    // Safe range 45-225°
-     * - ServoMotor20Diy base(0, -1, -1, 90, 180);    // Limited 90-180°
-     *
      * @param channel  Canale PCA9685 (0-15)
      * @param safeMin  Limite minimo di sicurezza (default -1 = no limit)
      * @param safeMax  Limite massimo di sicurezza (default -1 = no limit)

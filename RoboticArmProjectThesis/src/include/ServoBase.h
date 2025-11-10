@@ -24,10 +24,8 @@ public:
         int safeMax = -1
     );
     
-    // ========================================
-    // MOVIMENTO IMMEDIATO
-    // ========================================
-    
+// MOVIMENTO IMMEDIATO
+
     /**
      * Muove servo istantaneamente all'angolo specificato
      */
@@ -38,10 +36,8 @@ public:
      */
     void moveRelative(Adafruit_PWMServoDriver& pwm, int delta);
     
-    // ========================================
-    // MOVIMENTO SMOOTH NON-BLOCCANTE
-    // ========================================
-    
+// MOVIMENTO SMOOTH NON-BLOCCANTE
+
     /**
      * Avvia movimento smooth (NON-BLOCCANTE)
      * Da chiamare UNA VOLTA per iniziare il movimento
@@ -72,38 +68,30 @@ public:
      */
     void stopMove();
     
-    // ========================================
-    // POSIZIONI PREDEFINITE
-    // ========================================
-    
+// POSIZIONI PREDEFINITE
+
     void moveToMin(Adafruit_PWMServoDriver& pwm);
     void moveToMax(Adafruit_PWMServoDriver& pwm);
     void moveToCenter(Adafruit_PWMServoDriver& pwm);
     void moveToSafePosition(Adafruit_PWMServoDriver& pwm, int angle);
     
-    // ========================================
-    // GETTERS
-    // ========================================
-    
+// GETTERS
+
     int getCurrentAngle() const;
     int getChannel() const;
     bool isMoving() const;
     bool isAngleSafe(int angle) const;
     String getDebugInfo() const;
     
-    // ========================================
-    // SETTERS
-    // ========================================
-    
+// SETTERS
+
     void setSafetyLimits(int min, int max);
     void setSafetyEnabled(bool enabled);
     void setTrim(int trim);
 
 protected:
-    // ========================================
-    // VARIABILI PROTETTE (NO DUPLICATI!)
-    // ========================================
-    
+// VARIABILI PROTETTE (NO DUPLICATI!)
+
     // Hardware
     int channel;
     
@@ -129,10 +117,8 @@ protected:
     unsigned long moveStartTime;
     uint16_t moveDuration;
     
-    // ========================================
-    // UTILITY PROTETTE
-    // ========================================
-    
+// UTILITY PROTETTE
+
     uint16_t angleToPulse(float angle);
     float applySafetyLimits(float angle);
 };

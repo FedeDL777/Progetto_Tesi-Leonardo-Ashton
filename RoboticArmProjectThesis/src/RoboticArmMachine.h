@@ -1,11 +1,3 @@
-/*******************************************************************************
- * ROBOTIC ARM MACHINE - HEADER
- *
- * Gestisce: Servo, FSM, LED, Button, I2C
- * Include la logica di stato completa
- *
- * Autore: Federico De Leonardis
- ******************************************************************************/
 
 #ifndef __RAM__
 #define __RAM__
@@ -115,9 +107,9 @@ public:
      */
     String getDebugInfo() const;
 
-    // ========================================
+
     // SETTERS - SICUREZZA
-    // ========================================
+
 
     /**
      * Imposta limiti di sicurezza per servo
@@ -129,9 +121,9 @@ public:
     void setSafetyEnabled(bool enabled);
 
 private:
-    // ========================================
+
     // OGGETTI
-    // ========================================
+
 
     // Servo motori
     ServoMotor20Diy *baseServo;
@@ -148,9 +140,9 @@ private:
     Button *buttonWhite;
     Button *buttonBlue;
 
-    // ========================================
+
     // STATE VARIABLES
-    // ========================================
+
 
     int currentState;
     int previousState;
@@ -175,9 +167,9 @@ private:
     const unsigned long SERVO_CHECK_INTERVAL = 500;
     const unsigned long ERROR_RECOVERY_TIMEOUT = 3000;
 
-    // ========================================
+
     // HANDLERS DI STATO
-    // ========================================
+
 
     void handleStart();
     void enterStart();
@@ -203,9 +195,9 @@ private:
     void enterIdle();
     void exitIdle();
 
-    // ========================================
+
     // UTILITY PRIVATE
-    // ========================================
+
 
     void setLedState(bool green, bool red);
    // void logStateChange(int oldState, int newState);
